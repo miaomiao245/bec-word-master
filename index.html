@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BEC 词汇大师 - 深度内化版</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <div id="app" v-cloak class="flex flex-col min-h-screen">
+    <!-- 进度条 -->
+    <div class="top-progress-container">
+      <div class="top-progress-bar" :style="{ width: ((filteredCurrentNo) / (filteredTotal || 1) * 100) + '%' }"></div>
+    </div>
+
+    <!-- 顶部导航 -->
+    <header class="header">
+      <div class="container mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <div class="flex items-center gap-2">
+          <i class="ph-fill ph-graduation-cap logo-icon"></i>
+          <h1 class="title">BEC 词汇大师</h1>
+          <span class="hidden sm:block counter-badge">
+            目前第{{ filteredCurrentNo }}个/总计{{ filteredTotal }}个
+          </span>
+        </div>
+        <div class="flex flex-wrap gap-1.5 items-center">
+          <button @click="exportData" class="btn-sm">导出</button>
+          <button @click="state.showImporter = true" class="btn-sm">导入</button>
+          <button @click="toggleRandomMode" :class="['btn-sm', state.settings.enableRandomMode ? 'btn-purple' : 'btn-dark']">乱序 (R)</button>
+          <button @click="state.settings.enableReviewMode = !state.settings.enableReviewMode" :class="['btn-sm', state.settings.enableReviewMode ? 'btn-blue' : 'btn-dark']">遮挡 (Space)</button>
+          <button @click="toggleRecallMode" :class="['btn-sm', 
+            state.settings.recallMode === 'en2cn' ? 'btn-green' :
+            state.settings.recallMode === 'cn2en' ? 'btn-orange' : 'btn-dark']">
+            {{ state.settings.recallMode === 'en2cn' ? '英→中' : 
+               state.settings.recallMode === 'cn2en' ? '中→英' : '显示全部' }}
+          </button>
+          <button @click="openStatsAndReview" class="btn-sm btn-rose">统计/复习</button>
+          <span class="block sm:hidden counter-badge">
+            目前第{{ filteredCurrentNo }}个/总计{{ filteredTotal }}个
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 主内容 -->
+    <div class="flex-1 flex overflow-hidden">
+      <main class="flex-1 overflow-y-auto p-4 md:p-10 flex justify-center custom-scroll">
+        <div class="w-full max-w-2xl" v-if="state.currentWord">
+          <div class="card">
+            <div class="card-header">
+              <div v-if="state.settings.recallMode === 'cn2en'" class="mb-4">
+                <div class="relative inline-block px-4 py-1">
+                  <span class="text-4xl font-bold text-white">{{ state.currentWord.meaning }}</span>
+                </div>
+              </div>
+              <div v-else>
+                <div class="flex justify-center items-center gap-4 mb-3">
+                  <h2 class="word-title">{{ state.currentWord.word }}</h2>
+                  <div class="flex gap-2">
+                    <button @click="playAudio(state.currentWord.word, 1)" class="audio-btn">
+                      <i class="ph-fill ph-speaker-high"></i>
+                      <span class="audio-label">UK</span>
+                    </button>
+                    <button @click="playAudio(state.currentWord.word, 2)" class="audio-btn">
+                      <i class="ph-fill ph-speaker-high"></i>
+                      <span class="audio-label">US</span>
+                    </button>
+                  </div>
+                </div>
+                <p class="phonetic">{{ state.currentWord.phonetic }} 
+                  <span v-if="state.currentWord.pos" class="pos">[{{ state.currentWord.pos }}]</span>
+                </p>
+              </div>
+
+              <div class="input-container" v-if="state.settings.recallMode !== 'all'">
+                <input v-model="state.userInput" :class="['input-primary', isTypingCorrect ? 'is-correct' : '']" placeholder="输入拼写/释义并回车确认...">
+              </div>
+
+              <div class="relative inline-block px-4 py-2" v-if="state.settings.recallMode !== 'cn2en'">
+                <div v-if="state.settings.enableReviewMode" class="mask-overlay"></div>
+                <span class="text-xl font-bold">{{ state.currentWord.meaning }}</span>
+              </div>
+            </div>
+
+            <div class="card-body space-y-6">
+              <div class="module-card module-amber" v-show="state.settings.recallMode === 'all'">
+                <h3 class="module-title">💡 逻辑纠偏</h3>
+                <p class="module-content">{{ state.currentWord.mod1_desc }}</p>
+              </div>
+              <div class="module-card module-blue relative" v-show="state.settings.recallMode === 'all'">
+                <h3 class="module-title">🧠 底层逻辑</h3>
+                <div class="relative">
+                  <div v-if="state.settings.enableReviewMode" class="mask-overlay"></div>
+                  <p class="module-content">{{ state.currentWord.mod2_desc }}</p>
+                </div>
+              </div>
+              <div class="module-card module-purple" v-show="state.settings.recallMode === 'all'">
+                <h3 class="module-title">🔄 常考同义词</h3>
+                <div class="flex items-baseline gap-2">
+                  <span class="font-bold text-gray-800">{{ state.currentWord.mod3_word }}</span>
+                  <span class="relative px-2">
+                    <div v-if="state.settings.enableReviewMode" class="mask-overlay"></div>
+                    <span class="text-gray-500 text-sm">{{ state.currentWord.mod3_meaning }}</span>
+                  </span>
+                </div>
+              </div>
+              <div class="example-card" v-show="state.settings.recallMode === 'all'">
+                <div class="example-header">● 工作话术补丁</div>
+                <div class="p-6 space-y-4">
+                  <p class="example-en">"{{ state.currentWord.mod4_en }}"</p>
+                  <div class="relative p-4 bg-slate-50 rounded-lg">
+                    <div v-if="state.settings.enableReviewMode" class="mask-overlay"></div>
+                    <div class="space-y-3">
+                      <p class="example-zh">📌 {{ state.currentWord.mod4_zh }}</p>
+                      <p class="example-core">🎯 {{ state.currentWord.mod4_core }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <div class="flex gap-3 mb-6">
+                <button @click="mark('unknown')" class="btn-mark btn-red">1 不认识</button>
+                <button @click="mark('vague')" class="btn-mark btn-amber">2 模糊</button>
+                <button @click="mark('known')" class="btn-mark btn-green-fill">3 认识了</button>
+              </div>
+              <div class="flex justify-between items-center text-gray-400 text-xs px-2">
+                <button @click="prev" class="hover:text-blue-500 transition">← 上一个</button>
+                <span>
+                  {{ state.settings.enableRandomMode ? '乱序模式' : '顺序模式' }} | 
+                  {{ state.settings.recallMode === 'en2cn' ? '英→中' : state.settings.recallMode === 'cn2en' ? '中→英' : '全部' }}
+                  <span v-if="state.mastery[state.currentWord.word] === 'unknown'" class="ml-2 text-red-500 font-bold">【不认识】</span>
+                  <span v-else-if="state.mastery[state.currentWord.word] === 'vague'" class="ml-2 text-amber-500 font-bold">【模糊】</span>
+                </span>
+                <button @click="next" class="hover:text-blue-500 transition">下一个 →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- 导入弹窗 -->
+    <div v-if="state.showImporter" class="modal-overlay">
+      <div class="modal-content">
+        <h3 class="modal-title">导入 JSON 词库</h3>
+        <div class="mb-5 p-5 border-dashed border-2 border-blue-200 bg-blue-50 rounded-xl">
+          <p class="text-xs font-bold text-blue-800 mb-2">方案一：从文件导入</p>
+          <input type="file" @change="handleFileUpload" accept=".json" class="text-xs">
+        </div>
+        <div class="mb-5">
+          <p class="text-xs font-bold text-gray-500 mb-2">方案二：粘贴文本</p>
+          <textarea v-model="state.importText" class="w-full h-32 p-4 border rounded-lg text-xs font-mono" placeholder="粘贴数组..."></textarea>
+        </div>
+        <div class="flex gap-3">
+          <button @click="handleImport" class="btn-modal-primary">确定导入</button>
+          <button @click="state.showImporter = false" class="btn-modal-dark">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 统计弹窗 -->
+    <div v-if="state.showStats" class="modal-overlay">
+      <div class="modal-content">
+        <h3 class="modal-title flex items-center gap-2"><i class="ph ph-chart-line"></i> 学习统计</h3>
+        <div class="space-y-5">
+          <div v-for="(val, key) in { known: ['认识了','text-green-600'], vague: ['模糊','text-amber-600'], unknown: ['不认识','text-red-600'] }" :key="key">
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-gray-400">{{ val[0] }}</span>
+              <span :class="['font-bold', val[1]]">{{ stats[key] }}</span>
+            </div>
+            <div class="h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div :class="key === 'known' ? 'bg-green-400' : key === 'vague' ? 'bg-amber-400' : 'bg-red-400'"
+                :style="{ width: (stats[key] / (state.wordBank.length || 1) * 100) + '%' }"></div>
+            </div>
+          </div>
+          <button @click="reviewWeak" :disabled="stats.unknown + stats.vague === 0" class="btn-modal-rose">🔁 复习未掌握</button>
+          <div class="grid grid-cols-2 gap-3">
+            <button @click="reviewOnlyUnknown" :disabled="stats.unknown === 0" class="btn-modal-rose-dark">🔴 只复习不认识</button>
+            <button @click="reviewOnlyVague" :disabled="stats.vague === 0" class="btn-modal-amber">🟡 只复习模糊</button>
+          </div>
+        </div>
+        <div class="mt-6 text-right">
+          <button @click="state.showStats = false" class="btn-modal-dark">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script src="assets/js/utils.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
