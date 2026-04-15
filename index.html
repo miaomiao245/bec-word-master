@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BEC 词汇大师 - 深度内化版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        [v-cloak] { display: none; }
+        .mask-overlay {
+            position: absolute; inset: 0;
+            background-color: #e2e8f0 !important;
+            z-index: 50; border-radius: 6px; pointer-events: none;
+            transition: all 0.2s ease;
+        }
+        .module-card { border-left: 4px solid; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        
+        /* 纯进度条 无点纹 */
+        .top-progress-container {
+            position: fixed; top: 0; left: 0; right: 0; height: 8px; z-index: 100;
+            background: #e2e8f0;
+        }
+        .top-progress-bar {
+            height: 100%;
+            background: #3b82f6;
+            transition: width 0.3s ease;
+        }
+        .is-correct { color: #4ade80 !important; border-color: #4ade80 !important; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+<div id="app" v-cloak class="flex flex-col min-h-screen">
+    <!-- 纯色顶部进度条 -->
+    <div class="top-progress-container">
+        <div class="top-progress-bar" :style="{ width: ((state.currentIndex + 1) / state.wordBank.length * 100) + '%' }"></div>
+    </div>
+
+    <!-- 顶部导航 -->
+    <header class="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-3 shadow-md z-50 shrink-0 mt-2">
+        <div class="container mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <div class="flex items-center gap-2">
+                <i class="ph-fill ph-graduation-cap text-blue-400 text-xl"></i>
+                <h1 class="text-lg font-bold tracking-wide">BEC 词汇大师</h1>
+                <!-- 电脑端显示：标题右侧 -->
+                <span class="hidden sm:block text-xs bg-blue-500 px-2 py-1 rounded-full font-bold">
+                    目前第{{ currentNo }}个/总计{{ totalWords }}个
+                </span>
+            </div>
+            <div class="flex flex-wrap gap-1.5 items-center">
+                <button @click="exportData" class="text-[11px] bg-slate-700/60 px-2 py-1 rounded-lg hover:bg-slate-600/80 transition-all">导出</button>
+                <button @click="state.showImporter = true" class="text-[11px] bg-slate-700/60 px-2 py-1 rounded-lg hover:bg-slate-600/80 transition-all">导入</button>
+
+                <button @click="toggleRandomMode" 
+                        :class="['text-[11px] px-2 py-1 rounded-lg transition font-bold', state.settings.enableRandomMode ? 'bg-purple-500 shadow-sm' : 'bg-slate-600/60']">
+                    乱序 (R)
+                </button>
+                <button @click="state.settings.enableReviewMode = !state.settings.enableReviewMode" 
+                        :class="['text-[11px] px-2 py-1 rounded-lg transition font-bold', state.settings.enableReviewMode ? 'bg-blue-500 shadow-sm' : 'bg-slate-600/60']">
+                    遮挡 (Space)
+                </button>
+                <button @click="toggleRecallMode"
+                        :class="['text-[11px] px-2 py-1 rounded-lg transition font-bold', 
+                                state.settings.recallMode === 'en2cn' ? 'bg-emerald-500 shadow-sm' :
+                                state.settings.recallMode === 'cn2en' ? 'bg-orange-500 shadow-sm' : 'bg-slate-600/60']">
+                    {{ state.settings.recallMode === 'en2cn' ? '英→中' : 
+                       state.settings.recallMode === 'cn2en' ? '中→英' : '显示全部' }}
+                </button>
+
+                <button @click="openStatsAndReview" 
+                        class="text-[11px] bg-rose-500 px-2 py-1 rounded-lg hover:bg-rose-600 transition-all font-bold shadow-sm">
+                    统计/复习
+                </button>
+                <!-- 移动端显示：统计按钮后 -->
+                <span class="block sm:hidden text-xs bg-blue-500 px-2 py-1 rounded-full font-bold">
+                    目前第{{ currentNo }}个/总计{{ totalWords }}个
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden">
+        <main class="flex-1 overflow-y-auto p-4 md:p-10 flex justify-center custom-scroll">
+            <div class="w-full max-w-2xl" v-if="state.currentWord">
+                <div class="bg-white shadow-xl rounded-2xl overflow-hidden border border-slate-200 mb-8">
+                    <div class="bg-gradient-to-br from-blue-900 to-blue-800 text-white text-center pt-10 pb-12 px-6">
+                        <div v-if="state.settings.recallMode === 'cn2en'" class="mb-4">
+                            <div class="relative inline-block px-4 py-1">
+                                <span class="text-4xl font-bold text-white">{{ state.currentWord.meaning }}</span>
+                            </div>
+                        </div>
+
+                        <div v-else>
+                            <div class="flex justify-center items-center gap-4 mb-3">
+                                <h2 class="text-5xl font-bold tracking-tight">{{ state.currentWord.word }}</h2>
+                                <div class="flex gap-2">
+                                    <button @click="playAudio(state.currentWord.word, 1)" class="w-9 h-9 flex flex-col items-center justify-center bg-white/10 rounded-full hover:bg-white/20 transition-all">
+                                        <i class="ph-fill ph-speaker-high text-blue-200 text-sm"></i>
+                                        <span class="text-[7px] opacity-60">UK</span>
+                                    </button>
+                                    <button @click="playAudio(state.currentWord.word, 2)" class="w-9 h-9 flex flex-col items-center justify-center bg-white/10 rounded-full hover:bg-white/20 transition-all">
+                                        <i class="ph-fill ph-speaker-high text-blue-200 text-sm"></i>
+                                        <span class="text-[7px] opacity-60">US</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="text-blue-200 font-mono italic text-lg mb-8">
+                                {{ state.currentWord.phonetic }} 
+                                <span v-if="state.currentWord.pos" class="ml-2 text-blue-300 opacity-80 text-sm">[{{ state.currentWord.pos }}]</span>
+                            </p>
+                        </div>
+
+                        <div class="max-w-xs mx-auto mb-8" v-if="state.settings.recallMode !== 'all'">
+                            <input 
+                                type="text" 
+                                v-model="state.userInput" 
+                                :class="['w-full bg-transparent border-b-2 border-white/30 text-white text-center text-2xl py-3 outline-none transition-all', { 'is-correct': isTypingCorrect }]"
+                                placeholder="输入拼写/释义并回车确认..."
+                                autocomplete="off"
+                                spellcheck="false"
+                            >
+                        </div>
+
+                        <div class="relative inline-block px-4 py-2" v-if="state.settings.recallMode !== 'cn2en'">
+                            <div v-if="state.settings.enableReviewMode" class="mask-overlay"></div>
+                            <span class="text-xl font-bold">{{ state.currentWord.meaning }}</span>
+                        </div>
+                    </div>
+
+                    <div class="p-8 space-y-6">
+                        <div class="module-card border-amber-400 bg-amber-50/60 p-5 rounded-lg" v-show="state.settings.recallMode === 'all'">
+                            <h3 class="text-amber-800 font-bold text-xs mb-2 uppercase tracking-widest">💡 逻辑纠偏</h3>
+                            <p class="text-gray-700 text-[15px] leading-relaxed">{{ state.currentWord.mod1_desc }}</p>
+                        </div>
+                        <div class="module-card border-blue-400 bg-blue-50/60 p-5 rounded-lg relative" v-show="state.settings.recallMode === 'all'">
+                            <h3 class="text-blue-800 font-bold text-xs mb-2 uppercase tracking-widest">🧠 底层逻辑</h3>
+                            <div class="relative">
+                                <div v-if="state.settings.enableReviewMode" class="mask-overlay"></div>
+                                <p class="text-gray-700 italic text-[15px] leading-relaxed">{{ state.currentWord.mod2_desc }}</p>
+                            </div>
+                        </div>
+                        <div class="module-card border-purple-400 bg-purple-50/60 p-5 rounded-lg" v-show="state.settings.recallMode === 'all'">
+                            <h3 class="text-purple-800 font-bold text-xs mb-2 uppercase tracking-widest">🔄 常考同义词</h3>
+                            <div class="flex items-baseline gap-2">
+                                <span class="font-bold text-gray-800">{{ state.currentWord.mod3_word }}</span>
+                                <span class="relative px-2">
+                                    <div v-if="state.settings.enableReviewMode" class="mask-overlay"></div>
+                                    <span class="text-gray-500 text-sm">{{ state.currentWord.mod3_meaning }}</span>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 overflow-hidden" v-show="state.settings.recallMode === 'all'">
+                            <div class="bg-slate-100 px-5 py-3 font-bold text-slate-600 text-[13px]">● 工作话术补丁</div>
+                            <div class="p-6 space-y-4">
+                                <p class="text-gray-900 font-serif italic text-lg font-medium leading-relaxed">"{{ state.currentWord.mod4_en }}"</p>
+                                <div class="relative p-4 rounded-lg bg-slate-50">
+                                    <div v-if="state.settings.enableReviewMode" class="mask-overlay"></div>
+                                    <div class="space-y-3">
+                                        <p class="text-gray-600 text-[14px] flex items-start gap-2"><span>📌</span> <span>{{ state.currentWord.mod4_zh }}</span></p>
+                                        <p class="text-blue-800 font-bold text-[14px] flex items-start gap-2"><span>🎯</span> <span>{{ state.currentWord.mod4_core }}</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 p-6 border-t border-slate-200 rounded-b-2xl">
+                        <div class="flex gap-3 mb-6">
+                            <button @click="mark('unknown')" class="flex-1 py-3 border border-red-100 text-red-500 bg-white rounded-xl font-bold hover:bg-red-50 transition-all">1 不认识</button>
+                            <button @click="mark('vague')" class="flex-1 py-3 border border-amber-100 text-amber-500 bg-white rounded-xl font-bold hover:bg-amber-50 transition-all">2 模糊</button>
+                            <button @click="mark('known')" class="flex-1 py-3 bg-green-500 text-white rounded-xl font-bold shadow-sm hover:bg-green-600 transition-all">3 认识了</button>
+                        </div>
+                        <div class="flex justify-between items-center text-gray-400 text-xs px-2">
+                            <button @click="prev" class="hover:text-blue-500 flex items-center gap-1 transition">← 上一个</button>
+                            <span class="tracking-widest opacity-60 text-[10px]">
+                                {{ state.settings.enableRandomMode ? '乱序模式' : '顺序模式' }} | 
+                                {{ state.settings.recallMode === 'en2cn' ? '英→中' : state.settings.recallMode === 'cn2en' ? '中→英' : '全部' }}
+                                <span v-if="state.mastery[state.currentWord.word] === 'unknown'" class="ml-2 text-red-500 font-bold">【不认识】</span>
+                                <span v-else-if="state.mastery[state.currentWord.word] === 'vague'" class="ml-2 text-amber-500 font-bold">【模糊】</span>
+                            </span>
+                            <button @click="next" class="hover:text-blue-500 flex items-center gap-1 transition">下一个 →</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 导入弹窗 -->
+    <div v-if="state.showImporter" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto custom-scroll">
+            <h3 class="font-bold text-lg mb-5 text-blue-800">导入 JSON 词库</h3>
+            <div class="mb-5 p-5 border-2 border-dashed border-blue-200 bg-blue-50/50 rounded-xl">
+                <p class="text-[11px] font-bold text-blue-700 mb-2 uppercase">方案一：从文件导入</p>
+                <input type="file" @change="handleFileUpload" accept=".json" class="text-xs text-slate-600">
+            </div>
+            <div class="mb-5">
+                <p class="text-[11px] font-bold text-slate-500 mb-2 uppercase">方案二：粘贴文本</p>
+                <textarea v-model="state.importText" class="w-full h-32 border border-slate-200 rounded-xl p-4 text-[10px] font-mono outline-none focus:ring-2 focus:ring-blue-400 transition-all" placeholder='请粘贴词库数组...'></textarea>
+            </div>
+            <div class="flex gap-3">
+                <button @click="handleImport" class="flex-1 py-3 bg-blue-800 text-white rounded-xl font-bold text-sm hover:bg-blue-900 transition-all">确定粘贴导入</button>
+                <button @click="state.showImporter = false" class="px-8 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 统计弹窗 -->
+    <div v-if="state.showStats" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto custom-scroll">
+            <h3 class="text-slate-800 font-bold flex items-center gap-2 mb-5 text-lg"><i class="ph ph-chart-line"></i> 学习进度统计</h3>
+            <div class="space-y-5">
+                <div v-for="(val, key) in { 'known': ['认识了', 'text-green-600'], 'vague': ['模糊', 'text-amber-600'], 'unknown': ['不认识', 'text-red-600'] }" :key="key">
+                    <div class="flex justify-between text-xs mb-1.5">
+                        <span class="text-gray-400">{{ val[0] }}</span>
+                        <span :class="['font-bold', val[1]]">{{ stats[key] }}</span>
+                    </div>
+                    <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div :class="['h-full transition-all', key === 'known' ? 'bg-green-400' : key === 'vague' ? 'bg-amber-400' : 'bg-red-400']" :style="{ width: (stats[key] / (state.wordBank.length || 1) * 100) + '%' }"></div>
+                    </div>
+                </div>
+
+                <button @click="reviewWeak" :disabled="stats.unknown + stats.vague === 0" 
+                        class="w-full py-3 bg-red-500 text-white font-bold text-sm rounded-xl hover:bg-red-600 transition-all disabled:opacity-30">
+                    🔁 只复习未掌握（不认识+模糊）
+                </button>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button @click="reviewOnlyUnknown" :disabled="stats.unknown === 0" 
+                            class="py-3 bg-red-600 text-white font-bold text-sm rounded-xl hover:bg-red-700 transition-all disabled:opacity-30">
+                        🔴 只复习不认识
+                    </button>
+                    <button @click="reviewOnlyVague" :disabled="stats.vague === 0" 
+                            class="py-3 bg-amber-500 text-white font-bold text-sm rounded-xl hover:bg-amber-600 transition-all disabled:opacity-30">
+                        🟡 只复习模糊
+                    </button>
+                </div>
+            </div>
+            <div class="mt-6 text-right">
+                <button @click="state.showStats = false" class="px-8 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const { createApp, reactive, computed, onMounted, onUnmounted } = Vue;
+
+const defaultWord = { word: "Start", phonetic: "/stɑːrt/", pos: "v.", meaning: "开始", mod1_desc: "BEC 场景中常用于项目启动 (kick-off)。", mod2_desc: "底层逻辑：阶段性的切换。", mod3_word: "Commence", mod3_meaning: "开始；着手", mod4_en: "We will start the project.", mod4_zh: "我们将启动项目。", mod4_core: "意图：确认时间。" };
+
+const shuffleArray = (array) => {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+};
+
+createApp({
+    setup() {
+        const state = reactive({
+            wordBank: [defaultWord],
+            currentIndex: 0,
+            currentWord: defaultWord,
+            settings: { 
+                enableReviewMode: true,
+                enableRandomMode: false,
+                recallMode: 'en2cn'
+            },
+            mastery: {}, 
+            showImporter: false,
+            showStats: false,
+            importText: '',
+            userInput: '',
+            originalWordBank: [defaultWord],
+            reviewFilter: null,
+        });
+
+        const currentNo = computed(() => state.currentIndex + 1);
+        const totalWords = computed(() => state.wordBank.length);
+
+        const toggleRecallMode = () => {
+            if (state.settings.recallMode === 'all') {
+                state.settings.recallMode = 'en2cn';
+            } else if (state.settings.recallMode === 'en2cn') {
+                state.settings.recallMode = 'cn2en';
+            } else {
+                state.settings.recallMode = 'all';
+            }
+            state.userInput = '';
+            save();
+        };
+
+        const stats = computed(() => {
+            const res = { known: 0, vague: 0, unknown: 0 };
+            Object.values(state.mastery).forEach(v => { if(res[v] !== undefined) res[v]++ });
+            return res;
+        });
+
+        const isTypingCorrect = computed(() => {
+            const input = state.userInput.trim();
+            if (!input) return false;
+
+            if (state.settings.recallMode === 'cn2en') {
+                const target = state.currentWord.word.toLowerCase().replace(/[^a-z]/g, '');
+                const inputEn = input.toLowerCase().replace(/[^a-z]/g, '');
+                return inputEn === target;
+            }
+
+            if (state.settings.recallMode === 'en2cn') {
+                const meaning = state.currentWord.meaning;
+                const meanings = meaning.split(/[,;；，、\s]/).filter(item => item.trim());
+                return meanings.some(m => input.includes(m.trim()) || m.trim().includes(input));
+            }
+            return false;
+        });
+
+        const save = () => {
+            localStorage.setItem('bec_v5_final', JSON.stringify({
+                index: state.currentIndex, 
+                mastery: state.mastery, 
+                bank: state.originalWordBank,
+                randomMode: state.settings.enableRandomMode,
+                recallMode: state.settings.recallMode
+            }));
+        };
+
+        const toggleRandomMode = () => {
+            state.settings.enableRandomMode = !state.settings.enableRandomMode;
+            state.wordBank = state.settings.enableRandomMode 
+                ? shuffleArray([...state.originalWordBank]) 
+                : [...state.originalWordBank];
+            state.currentIndex = 0;
+            state.reviewFilter = null;
+            state.currentWord = state.wordBank[0];
+            save();
+        };
+
+        const findNextFilteredIndex = (step = 1) => {
+            const total = state.wordBank.length;
+            let idx = state.currentIndex;
+            for (let i = 0; i < total; i++) {
+                idx = (idx + step + total) % total;
+                const word = state.wordBank[idx];
+                const mark = state.mastery[word.word];
+                
+                if (state.reviewFilter === 'unknown' && mark === 'unknown') return idx;
+                if (state.reviewFilter === 'vague' && mark === 'vague') return idx;
+                if (state.reviewFilter === 'both' && (mark === 'unknown' || mark === 'vague')) return idx;
+            }
+            return state.currentIndex;
+        };
+
+        const jump = (i) => {
+            if (state.wordBank.length === 0) return;
+            let targetIndex = typeof i === 'number' ? Math.max(0, Math.min(i, state.wordBank.length - 1)) : state.currentIndex;
+            state.currentIndex = targetIndex;
+            state.currentWord = state.wordBank[targetIndex];
+            state.settings.enableReviewMode = true;
+            state.userInput = '';
+            save();
+        };
+
+        const next = () => {
+            if (state.reviewFilter) {
+                jump(findNextFilteredIndex(1));
+            } else {
+                state.settings.enableRandomMode ? jump(Math.floor(Math.random() * state.wordBank.length)) : jump(state.currentIndex + 1);
+            }
+        };
+
+        const prev = () => {
+            if (state.reviewFilter) {
+                jump(findNextFilteredIndex(-1));
+            } else {
+                jump(state.currentIndex - 1);
+            }
+        };
+
+        // ==============================================
+        // 🔥 终极修复：原生 document 全局键盘监听
+        // ==============================================
+        const handleGlobalKey = (e) => {
+            // 弹窗打开 → 禁用所有快捷键
+            if (state.showImporter || state.showStats) return;
+            
+            // 判断是否在输入框中
+            const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
+
+            // 1. 空格键：切换遮挡（强制禁止网页下滑）
+            if (e.code === 'Space') {
+                if (!isInput) {
+                    e.preventDefault();
+                    state.settings.enableReviewMode = !state.settings.enableReviewMode;
+                }
+                return;
+            }
+
+            // 2. 回车：答对自动标记
+            if (e.key === 'Enter' && isTypingCorrect.value) {
+                e.preventDefault();
+                mark('known');
+                return;
+            }
+
+            // 输入框中 → 不触发翻页/快捷键
+            if (isInput) return;
+
+            // 3. 左右方向键：翻页（强制禁止默认行为）
+            if (e.code === 'ArrowRight') {
+                e.preventDefault();
+                next();
+                return;
+            }
+            if (e.code === 'ArrowLeft') {
+                e.preventDefault();
+                prev();
+                return;
+            }
+
+            // 4. 其他快捷键
+            if (e.key === 'r' || e.key === 'R') { toggleRandomMode(); return; }
+            if (e.key === 'm' || e.key === 'M') { toggleRecallMode(); return; }
+            if (e.key === '1') { mark('unknown'); return; }
+            if (e.key === '2') { mark('vague'); return; }
+            if (e.key === '3') { mark('known'); return; }
+        };
+
+        // 挂载全局键盘监听（最稳定方案）
+        onMounted(() => {
+            document.addEventListener('keydown', handleGlobalKey);
+            
+            // 加载本地存储
+            const data = localStorage.getItem('bec_v5_final');
+            if (data) {
+                const p = JSON.parse(data);
+                state.originalWordBank = p.bank || [defaultWord];
+                state.settings.enableRandomMode = p.randomMode || false;
+                state.settings.recallMode = p.recallMode || 'en2cn';
+                state.wordBank = state.settings.enableRandomMode ? shuffleArray([...state.originalWordBank]) : [...state.originalWordBank];
+                state.currentIndex = p.index || 0;
+                state.mastery = p.mastery || {};
+                state.currentWord = state.wordBank[Math.min(state.currentIndex, state.wordBank.length-1)];
+            }
+        });
+
+        // 卸载监听
+        onUnmounted(() => {
+            document.removeEventListener('keydown', handleGlobalKey);
+        });
+
+        const mark = (s) => { 
+            state.mastery[state.currentWord.word] = s; 
+            next();
+            save();
+        };
+
+        const openStatsAndReview = () => state.showStats = true;
+        const reviewWeak = () => { state.reviewFilter = 'both'; jump(findNextFilteredIndex()); state.showStats = false; };
+        const reviewOnlyUnknown = () => { state.reviewFilter = 'unknown'; jump(findNextFilteredIndex()); state.showStats = false; };
+        const reviewOnlyVague = () => { state.reviewFilter = 'vague'; jump(findNextFilteredIndex()); state.showStats = false; };
+
+        const processImportData = (content) => {
+            try {
+                const data = JSON.parse(content.trim());
+                let words = Array.isArray(data) ? data : data.bank;
+                if (Array.isArray(words) && words.length > 0) {
+                    state.originalWordBank = words;
+                    state.wordBank = data.randomMode ? shuffleArray([...words]) : [...words];
+                    state.currentIndex = data.index || 0;
+                    state.mastery = data.mastery || {};
+                    state.settings.enableRandomMode = data.randomMode || false;
+                    state.settings.recallMode = data.recallMode || 'en2cn';
+                    state.reviewFilter = null;
+                    state.currentWord = state.wordBank[state.currentIndex];
+                    state.showImporter = false;
+                    alert("🎉 导入成功！已加载 " + words.length + " 个单词");
+                    save();
+                }
+            } catch(e) { alert("导入失败：" + e.message); }
+        };
+
+        const handleFileUpload = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => processImportData(ev.target.result);
+            reader.readAsText(file);
+        };
+
+        return {
+            state, stats, currentNo, totalWords, jump, mark, isTypingCorrect,
+            next, prev, toggleRandomMode, toggleRecallMode, openStatsAndReview,
+            reviewWeak, reviewOnlyUnknown, reviewOnlyVague, handleFileUpload,
+            playAudio: (w, t) => new Audio(`https://dict.youdao.com/dictvoice?type=${t}&audio=${encodeURIComponent(w)}`).play(),
+            exportData: () => {
+                const data = JSON.stringify({index:state.currentIndex,mastery:state.mastery,bank:state.originalWordBank,randomMode:state.settings.enableRandomMode,recallMode:state.settings.recallMode},null,2);
+                const url = URL.createObjectURL(new Blob([data],{type:'application/json'}));
+                const a = document.createElement('a');a.href=url;a.download='BEC单词备份.json';a.click();
+            },
+            handleImport: () => processImportData(state.importText),
+        };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>
