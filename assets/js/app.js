@@ -18,6 +18,8 @@ createApp({
       userInput: '',
       originalWordBank: [defaultWord],
       reviewFilter: null,
+      transitionName: 'slide-left',
+      currentWordIndex: 0,
     });
 
     // 动态筛选单词
@@ -79,6 +81,7 @@ createApp({
         ? shuffleArray([...state.originalWordBank])
         : [...state.originalWordBank];
       state.currentIndex = 0;
+      state.currentWordIndex = 0;
       state.reviewFilter = null;
       state.currentWord = state.wordBank[0];
       save();
@@ -110,14 +113,21 @@ createApp({
     const jump = (i) => {
       state.currentIndex = Math.max(0, Math.min(i, state.wordBank.length - 1));
       state.currentWord = state.wordBank[state.currentIndex];
+      state.currentWordIndex = state.currentIndex;
       state.settings.enableReviewMode = true;
       state.userInput = '';
       save();
     };
 
-    const next = () => state.reviewFilter ? jump(findNextFilteredIndex(1)) : (state.settings.enableRandomMode ? jump(Math.floor(Math.random() * state.wordBank.length)) : jump(state.currentIndex + 1));
-    const prev = () => state.reviewFilter ? jump(findNextFilteredIndex(-1)) : jump(state.currentIndex - 1);
-    const mark = (s) => { state.mastery[state.currentWord.word] = s; next(); save(); };
+    const nextWord = () => {
+      state.transitionName = 'slide-left';
+      state.reviewFilter ? jump(findNextFilteredIndex(1)) : (state.settings.enableRandomMode ? jump(Math.floor(Math.random() * state.wordBank.length)) : jump(state.currentIndex + 1));
+    };
+    const prevWord = () => {
+      state.transitionName = 'slide-right';
+      state.reviewFilter ? jump(findNextFilteredIndex(-1)) : jump(state.currentIndex - 1);
+    };
+    const mark = (s) => { state.mastery[state.currentWord.word] = s; nextWord(); save(); };
 
     // 处理滑动逻辑
     const handleTouch = (start, end) => {
@@ -128,15 +138,16 @@ createApp({
       if (Math.abs(diff) > threshold) {
         if (diff > 0) {
           // 从右往左划 -> 下一个
-          next();
+          nextWord();
         } else {
           // 从左往右划 -> 上一个
-          prev();
+          prevWord();
         }
       }
     };
 
     let touchStartX = 0;
+    let touchGestureFromCard = false;
 
     // 复习
     const openStatsAndReview = () => state.showStats = true;
@@ -159,6 +170,7 @@ createApp({
           state.settings.recallMode = data.recallMode || 'en2cn';
           state.reviewFilter = null;
           state.currentWord = state.wordBank[state.currentIndex];
+          state.currentWordIndex = state.currentIndex;
           state.showImporter = false;
 
           alert(`✅ 导入成功！共加载 ${words.length} 个单词`);
@@ -205,6 +217,7 @@ createApp({
         state.currentIndex = p.index || 0;
         state.mastery = p.mastery || {};
         state.currentWord = state.wordBank[Math.min(state.currentIndex, state.wordBank.length - 1)];
+        state.currentWordIndex = state.currentIndex;
       }
 
       document.addEventListener('keydown', (e) => {
@@ -216,8 +229,8 @@ createApp({
           if (!isInput) state.settings.enableReviewMode = !state.settings.enableReviewMode;
           return;
         }
-        if (e.code === 'ArrowRight') { e.preventDefault(); next(); return; }
-        if (e.code === 'ArrowLeft') { e.preventDefault(); prev(); return; }
+        if (e.code === 'ArrowRight') { e.preventDefault(); nextWord(); return; }
+        if (e.code === 'ArrowLeft') { e.preventDefault(); prevWord(); return; }
         if (isInput) return;
         if (e.key === 'Enter' && isTypingCorrect.value) { e.preventDefault(); mark('known'); return; }
         if (e.key.toLowerCase() === 'r') { toggleRandomMode(); return; }
@@ -228,16 +241,27 @@ createApp({
       });
 
       nextTick(() => {
-        const container = document.getElementById('word-card');
-        if (!container) return;
+        const scrollMain = document.querySelector('main.custom-scroll');
+        if (!scrollMain) return;
 
-        container.addEventListener('touchstart', (e) => {
+        scrollMain.addEventListener('touchstart', (e) => {
+          if (!e.target.closest('#word-card')) {
+            touchGestureFromCard = false;
+            return;
+          }
+          touchGestureFromCard = true;
           touchStartX = e.changedTouches[0].screenX;
         }, { passive: true });
 
-        container.addEventListener('touchend', (e) => {
+        scrollMain.addEventListener('touchend', (e) => {
+          if (!touchGestureFromCard) return;
+          touchGestureFromCard = false;
           const touchEndX = e.changedTouches[0].screenX;
           handleTouch(touchStartX, touchEndX);
+        }, { passive: true });
+
+        scrollMain.addEventListener('touchcancel', () => {
+          touchGestureFromCard = false;
         }, { passive: true });
       });
     });
@@ -245,7 +269,7 @@ createApp({
     return {
       state, stats, filteredCurrentNo, filteredTotal,
       isTypingCorrect, toggleRandomMode, toggleRecallMode,
-      next, prev, mark, jump, openStatsAndReview,
+      nextWord, prevWord, mark, jump, openStatsAndReview,
       reviewWeak, reviewOnlyUnknown, reviewOnlyVague,
       handleFileUpload, exportData, handleImport: () => processImportData(state.importText), playAudio
     };
