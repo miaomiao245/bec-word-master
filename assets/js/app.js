@@ -114,12 +114,13 @@ createApp({
       reviewFilter: null,
       transitionName: 'slide-left',
       currentWordIndex: 0,
-      showAuthOverlay: !hasCloudCreds() && !isCloudGuest(),
       authForm: { token: '', gistId: '' },
       manifestDays: [],
       selectedDayFile: '',
       dataLoadMessage: '',
       dataLoadBusy: false,
+      showSyncDrawer: false,
+      showSettingsMenu: false,
     });
 
     _stateRef = state;
@@ -131,9 +132,18 @@ createApp({
 
     const canDismissAuthOverlay = computed(() => hasCloudCreds() || isCloudGuest());
 
-    const closeAuthOverlay = () => {
-      if (!canDismissAuthOverlay.value) return;
-      state.showAuthOverlay = false;
+    const closeSyncDrawer = () => {
+      state.showSyncDrawer = false;
+    };
+
+    const openSyncDrawer = () => {
+      state.showSyncDrawer = true;
+      state.authForm.token = readToken();
+      state.authForm.gistId = readGistId();
+    };
+
+    const closeSettingsMenu = () => {
+      state.showSettingsMenu = false;
     };
 
     const isWordMasteredHighlight = (w) => w && w._id && state.mastered_ids.includes(w._id);
@@ -279,7 +289,7 @@ createApp({
     };
 
     const handleTouch = (start, end) => {
-      if (state.showImporter || state.showStats || state.showAuthOverlay) return;
+      if (state.showImporter || state.showStats || state.showSyncDrawer || state.showSettingsMenu) return;
       const threshold = 50;
       const diff = start - end;
       if (Math.abs(diff) > threshold) {
@@ -326,7 +336,8 @@ createApp({
         const res = await fetch(cacheBustUrl('./data/manifest.json'));
         if (!res.ok) throw new Error(`manifest ${res.status}`);
         const json = await res.json();
-        const days = Array.isArray(json.days) ? json.days : json.files || [];
+        const rawDays = Array.isArray(json.days) ? json.days : json.files || [];
+        const days = rawDays.map((d) => normalizeDayCode(d)).filter(Boolean);
         state.manifestDays = days;
         if (days.length && !state.selectedDayFile) state.selectedDayFile = days[0];
       } catch (e) {
@@ -335,61 +346,101 @@ createApp({
       }
     };
 
-    const loadSelectedDay = async () => {
-      const file = state.selectedDayFile;
-      if (!file) {
-        alert('请先在 manifest 中配置 days');
-        return;
+    /** 拉取并应用某日词库；fromUrl=true 且 404 时使用友好提示 */
+    const loadDayJsonByCode = async (rawDay, options = {}) => {
+      const { fromUrl = false } = options;
+      const code = normalizeDayCode(rawDay);
+      if (!code) {
+        alert('无效的 Day 编号');
+        return false;
       }
+      const path = dayJsonRelativePath(code);
       state.dataLoadBusy = true;
       state.dataLoadMessage = '';
       try {
-        const res = await fetch(cacheBustUrl(`./data/${file}`));
-        if (!res.ok) throw new Error(`读取 ${file} 失败 ${res.status}`);
+        const res = await fetch(cacheBustUrl(path));
+        if (res.status === 404) {
+          if (fromUrl) {
+            alert(`Day ${code} 的 JSON 文件尚未上传至仓库`);
+          } else {
+            alert(`未找到文件：day${code}.json`);
+          }
+          return false;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const raw = await res.json();
-        const words = normalizeWordsFromDay(raw, file);
+        const fileLabel = `day${code}.json`;
+        const words = normalizeWordsFromDay(raw, fileLabel);
         if (!words.length) throw new Error('该日文件无单词');
         applyWordBank(words, { shuffle: state.settings.enableRandomMode });
-        state.dataLoadMessage = `已加载 ${file}，共 ${words.length} 词`;
+        state.selectedDayFile = code;
+        if (!state.manifestDays.includes(code)) {
+          state.manifestDays = [code, ...state.manifestDays];
+        }
+        state.dataLoadMessage = `已加载 ${formatDayLabel(code)}，共 ${words.length} 词`;
+        return true;
       } catch (e) {
         state.dataLoadMessage = '';
         alert('加载失败：' + e.message);
+        return false;
       } finally {
         state.dataLoadBusy = false;
       }
+    };
+
+    const loadSelectedDay = async () => {
+      const code = state.selectedDayFile;
+      if (!code) {
+        alert('请先在 manifest 中配置推荐 days，或使用 ?day= 参数');
+        return;
+      }
+      await loadDayJsonByCode(code, { fromUrl: false });
     };
 
     const loadAllFromManifest = async () => {
       state.dataLoadBusy = true;
       state.dataLoadMessage = '';
       try {
-        if (!state.manifestDays.length) await fetchManifest();
+        if (!state.manifestDays.length) await fetchManifest(true);
         const days = state.manifestDays;
-        if (!days.length) throw new Error('manifest 中无 days');
+        if (!days.length) throw new Error('manifest 中暂无推荐 day 列表');
         const results = await Promise.all(
-          days.map((file) =>
-            fetch(cacheBustUrl(`./data/${file}`)).then((r) => {
-              if (!r.ok) throw new Error(file + ' ' + r.status);
+          days.map((code) => {
+            const path = dayJsonRelativePath(code);
+            return fetch(cacheBustUrl(path)).then((r) => {
+              if (!r.ok) throw new Error(`day${normalizeDayCode(code)}.json ${r.status}`);
               return r.json();
-            }),
-          ),
+            });
+          }),
         );
         const merged = [];
-        days.forEach((file, idx) => {
-          const chunk = normalizeWordsFromDay(results[idx], file);
+        days.forEach((code, idx) => {
+          const fileLabel = `day${normalizeDayCode(code)}.json`;
+          const chunk = normalizeWordsFromDay(results[idx], fileLabel);
           merged.push(...chunk);
         });
         if (!merged.length) throw new Error('合并后无单词');
         applyWordBank(merged, { shuffle: true });
         state.settings.enableRandomMode = true;
         save();
-        state.dataLoadMessage = `全量已合并 ${merged.length} 词（已乱序）`;
+        state.dataLoadMessage = `已全部合并 ${merged.length} 词（已乱序）`;
       } catch (e) {
         state.dataLoadMessage = '';
-        alert('全量加载失败：' + e.message);
+        alert('全部加载失败：' + e.message);
       } finally {
         state.dataLoadBusy = false;
       }
+    };
+
+    const tryLoadFromUrlDayParam = async () => {
+      let dayParam = null;
+      try {
+        dayParam = new URLSearchParams(window.location.search).get('day');
+      } catch {
+        return;
+      }
+      if (dayParam == null || dayParam === '') return;
+      await loadDayJsonByCode(dayParam, { fromUrl: true });
     };
 
     const processImportData = (content) => {
@@ -453,13 +504,7 @@ createApp({
     const enterGuestMode = () => {
       localStorage.setItem(LS_GUEST, '1');
       sessionStorage.setItem(SS_WAS_GUEST, '1');
-      state.showAuthOverlay = false;
-    };
-
-    const openCloudAuth = () => {
-      state.showAuthOverlay = true;
-      state.authForm.token = readToken();
-      state.authForm.gistId = readGistId();
+      closeSyncDrawer();
     };
 
     const submitCloudLogin = async () => {
@@ -533,9 +578,10 @@ createApp({
       hydrateFromLocalStorage();
       await fetchManifest(true);
       await mergeRemoteMastered();
+      await tryLoadFromUrlDayParam();
 
       document.addEventListener('keydown', (e) => {
-        if (state.showImporter || state.showStats || state.showAuthOverlay) return;
+        if (state.showImporter || state.showStats || state.showSyncDrawer || state.showSettingsMenu) return;
         const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
 
         if (e.code === 'Space') {
@@ -638,12 +684,14 @@ createApp({
       isWordMasteredHighlight,
       enterGuestMode,
       submitCloudLogin,
-      openCloudAuth,
+      openSyncDrawer,
+      closeSyncDrawer,
+      closeSettingsMenu,
       fetchManifest,
       loadSelectedDay,
       loadAllFromManifest,
       canDismissAuthOverlay,
-      closeAuthOverlay,
+      formatDayLabel,
     };
   },
 }).mount('#app');

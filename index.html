@@ -7,195 +7,215 @@
   <title>BEC词汇大师</title>
   <meta name="description" content="BEC词汇大师，专为备考BEC打造的高效单词学习工具，支持自定义词库、多种记忆模式">
 
-  <!-- 核心图标（只保留这两个就够了） -->
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
   <link rel="apple-touch-icon" href="apple-icon-180x180.png">
 
-  <!-- 样式表 -->
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 
 <body>
-  <div id="app" v-cloak class="flex flex-col min-h-screen">
-    <!-- 进度条 -->
+  <div id="app" v-cloak class="app-root flex flex-col min-h-screen">
     <div class="top-progress-container">
       <div class="top-progress-bar" :style="{ width: ((filteredCurrentNo) / (filteredTotal || 1) * 100) + '%' }"></div>
     </div>
 
-    <!-- 顶部导航 -->
-    <header class="header">
-      <div class="cloud-status-bar" v-if="!state.showAuthOverlay">
-        <span v-if="isCloudConnected()" class="cloud-status cloud-on">🟢 云端已连接 · Gist …{{ gistIdSuffix }}</span>
-        <span v-else class="cloud-status cloud-off">🟡 离线模式（数据仅保存在当前浏览器）</span>
-        <button v-if="!isCloudConnected()" type="button" class="cloud-link-btn" @click="openCloudAuth">连接云端</button>
-      </div>
-      <div class="container mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-        <div class="flex items-center gap-2">
-          <i class="ph-fill ph-graduation-cap logo-icon"></i>
-          <h1 class="title">BEC 词汇大师</h1>
-          <span class="hidden sm:block counter-badge">
-            目前第{{ filteredCurrentNo }}个/总计{{ filteredTotal }}个
-          </span>
-        </div>
-        <div class="flex flex-wrap gap-1.5 items-center">
-          <button @click="exportData" class="btn-sm">导出</button>
-          <button @click="state.showImporter = true" class="btn-sm">导入</button>
-          <button @click="toggleRandomMode"
-            :class="['btn-sm', state.settings.enableRandomMode ? 'btn-purple' : 'btn-dark']">乱序 (R)</button>
-          <button @click="state.settings.enableReviewMode = !state.settings.enableReviewMode"
-            :class="['btn-sm', state.settings.enableReviewMode ? 'btn-blue' : 'btn-dark']">遮挡 (Space)</button>
-          <button @click="toggleRecallMode" :class="['btn-sm', 
-            state.settings.recallMode === 'en2cn' ? 'btn-green' :
-            state.settings.recallMode === 'cn2en' ? 'btn-orange' : 'btn-dark']">
-            {{ state.settings.recallMode === 'en2cn' ? '英→中' :
-            state.settings.recallMode === 'cn2en' ? '中→英' : '显示全部' }}
-          </button>
-          <button @click="openStatsAndReview" class="btn-sm btn-rose">统计/复习</button>
-          <span class="block sm:hidden counter-badge">
-            目前第{{ filteredCurrentNo }}个/总计{{ filteredTotal }}个
-          </span>
-        </div>
-      </div>
-      <div class="data-source-bar" v-if="!state.showAuthOverlay">
-        <label class="data-source-label">词库</label>
-        <select v-model="state.selectedDayFile" class="data-source-select" :disabled="state.dataLoadBusy">
-          <option v-for="f in state.manifestDays" :key="f" :value="f">{{ f }}</option>
-        </select>
-        <button type="button" class="btn-sm btn-blue" :disabled="state.dataLoadBusy" @click="loadSelectedDay">加载所选 Day</button>
-        <button type="button" class="btn-sm btn-purple" :disabled="state.dataLoadBusy" @click="loadAllFromManifest">全量加载（并发）</button>
-        <button type="button" class="btn-sm btn-dark" :disabled="state.dataLoadBusy" @click="fetchManifest">刷新目录</button>
-        <span v-if="state.dataLoadMessage" class="data-source-msg">{{ state.dataLoadMessage }}</span>
+    <button type="button" id="sync-status" class="sync-status-dot" :class="{ 'sync-on': isCloudConnected(), 'sync-off': !isCloudConnected() }"
+      title="同步与备份" aria-label="打开同步与备份" @click="openSyncDrawer"></button>
+
+    <header class="header header-text-only">
+      <div class="header-inner">
+        <i class="ph-fill ph-graduation-cap logo-icon" aria-hidden="true"></i>
+        <h1 class="title">BEC 词汇大师</h1>
+        <span class="header-counter">目前第 {{ filteredCurrentNo }} 个 · 共 {{ filteredTotal }} 个</span>
       </div>
     </header>
 
-    <!-- 主内容 -->
-    <div class="flex-1 flex overflow-hidden">
-      <main class="flex-1 overflow-y-auto p-4 md:p-10 flex justify-center custom-scroll">
-        <div class="w-full max-w-2xl" v-if="state.currentWord">
-          <transition :name="state.transitionName" mode="out-in">
-            <div id="word-card" :key="state.currentWordIndex"
-              :class="['card', { 'card-mastered': isWordMasteredHighlight(state.currentWord) }]">
-            <div class="card-header">
-              <div v-if="state.settings.recallMode === 'cn2en'" class="mb-4">
-                <div class="relative inline-block px-4 py-1">
-                  <span class="text-4xl font-bold text-white">{{ state.currentWord.meaning }}</span>
-                </div>
-              </div>
-              <div v-else>
-                <div class="flex justify-center items-center gap-4 mb-3">
-                  <h2 class="word-title">{{ state.currentWord.word }}</h2>
-                  <div class="flex gap-2">
-                    <button @click="playAudio(state.currentWord.word, 1)" class="audio-btn">
-                      <i class="ph-fill ph-speaker-high"></i>
-                      <span class="audio-label">UK</span>
-                    </button>
-                    <button @click="playAudio(state.currentWord.word, 2)" class="audio-btn">
-                      <i class="ph-fill ph-speaker-high"></i>
-                      <span class="audio-label">US</span>
-                    </button>
-                  </div>
-                </div>
-                <p class="phonetic">{{ state.currentWord.phonetic }}
-                  <span v-if="state.currentWord.pos" class="pos">[{{ state.currentWord.pos }}]</span>
-                </p>
-              </div>
-
-              <div class="input-container" v-if="state.settings.recallMode !== 'all'">
-                <input v-model="state.userInput" :class="['input-primary', isTypingCorrect ? 'is-correct' : '']"
-                  placeholder="输入拼写/释义并回车确认...">
-              </div>
-
-              <div class="relative inline-block px-4 py-2" v-if="state.settings.recallMode !== 'cn2en'">
-                <div v-if="state.settings.enableReviewMode" class="mask-overlay"
-                  @click="state.settings.enableReviewMode = !state.settings.enableReviewMode"></div>
-                <span class="text-xl font-bold">{{ state.currentWord.meaning }}</span>
-              </div>
+    <div class="flex-1 flex overflow-hidden min-h-0">
+      <main class="study-main custom-scroll flex-1 overflow-y-auto flex flex-col min-h-0">
+        <div class="study-chrome" v-if="state.currentWord">
+          <div class="learning-toolbar" role="toolbar" aria-label="学习工具">
+            <button type="button" class="learn-icon-btn" :class="{ active: state.settings.enableRandomMode }" title="乱序 (R)"
+              aria-label="乱序" @click="toggleRandomMode">
+              <i class="ph ph-shuffle" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="learn-icon-btn" :class="{ active: state.settings.enableReviewMode }" title="遮挡释义 (Space)"
+              aria-label="遮挡释义" @click="state.settings.enableReviewMode = !state.settings.enableReviewMode">
+              <i class="ph" :class="state.settings.enableReviewMode ? 'ph-eye-slash' : 'ph-eye'" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="learn-icon-btn" :class="{ active: state.settings.recallMode !== 'en2cn' }" title="记忆模式 (M)"
+              aria-label="切换记忆模式" @click="toggleRecallMode">
+              <i class="ph ph-text-aa" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="learn-icon-btn" title="统计与复习" aria-label="统计与复习" @click="openStatsAndReview">
+              <i class="ph ph-chart-line" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="settings-wrap">
+            <button type="button" class="settings-gear-btn" title="设置" aria-label="打开设置菜单"
+              @click.stop="state.showSettingsMenu = !state.showSettingsMenu">
+              <i class="ph ph-gear" aria-hidden="true"></i>
+            </button>
+            <div v-if="state.showSettingsMenu" class="settings-screen" @click="closeSettingsMenu"></div>
+            <div v-if="state.showSettingsMenu" class="settings-panel" @click.stop>
+              <p class="settings-heading">词库与管理</p>
+              <label class="settings-label">数据日文件</label>
+              <select v-model="state.selectedDayFile" class="settings-select" :disabled="state.dataLoadBusy">
+                <option v-for="f in state.manifestDays" :key="f" :value="f">{{ formatDayLabel(f) }}</option>
+              </select>
+              <button type="button" class="settings-action" :disabled="state.dataLoadBusy"
+                @click="loadSelectedDay(); closeSettingsMenu()">加载所选 Day</button>
+              <button type="button" class="settings-action" :disabled="state.dataLoadBusy"
+                @click="loadAllFromManifest(); closeSettingsMenu()">全部加载</button>
+              <button type="button" class="settings-action" :disabled="state.dataLoadBusy"
+                @click="fetchManifest(); closeSettingsMenu()">刷新 manifest 目录</button>
+              <p class="settings-subheading">备份</p>
+              <button type="button" class="settings-action" @click="exportData(); closeSettingsMenu()">导出 JSON</button>
+              <button type="button" class="settings-action" @click="state.showImporter = true; closeSettingsMenu()">导入 JSON</button>
+              <p v-if="state.dataLoadMessage" class="settings-msg">{{ state.dataLoadMessage }}</p>
             </div>
+          </div>
+        </div>
 
-            <div class="card-body space-y-6">
-              <div class="module-card module-amber" v-show="state.settings.recallMode === 'all'">
-                <h3 class="module-title">💡 逻辑纠偏</h3>
-                <p class="module-content">{{ state.currentWord.mod1_desc }}</p>
-              </div>
-              <div class="module-card module-blue relative" v-show="state.settings.recallMode === 'all'">
-                <h3 class="module-title">🧠 底层逻辑</h3>
-                <div class="relative">
-                  <div v-if="state.settings.enableReviewMode" class="mask-overlay"
-                    @click="state.settings.enableReviewMode = !state.settings.enableReviewMode"></div>
-                  <p class="module-content">{{ state.currentWord.mod2_desc }}</p>
-                </div>
-              </div>
-              <div class="module-card module-purple" v-show="state.settings.recallMode === 'all'">
-                <h3 class="module-title">🔄 常考同义词</h3>
-                <div class="flex items-baseline gap-2">
-                  <span class="font-bold text-gray-800">{{ state.currentWord.mod3_word }}</span>
-                  <span class="relative px-2">
-                    <div v-if="state.settings.enableReviewMode" class="mask-overlay"
-                      @click="state.settings.enableReviewMode = !state.settings.enableReviewMode"></div>
-                    <span class="text-gray-500 text-sm">{{ state.currentWord.mod3_meaning }}</span>
-                  </span>
-                </div>
-              </div>
-              <div class="example-card" v-show="state.settings.recallMode === 'all'">
-                <div class="example-header">● 工作话术补丁</div>
-                <div class="p-6 space-y-4">
-                  <p class="example-en">"{{ state.currentWord.mod4_en }}"</p>
-                  <div class="relative p-4 bg-slate-50 rounded-lg">
-                    <div v-if="state.settings.enableReviewMode" class="mask-overlay"
-                      @click="state.settings.enableReviewMode = !state.settings.enableReviewMode"></div>
-                    <div class="space-y-3">
-                      <p class="example-zh">📌 {{ state.currentWord.mod4_zh }}</p>
-                      <p class="example-core">🎯 {{ state.currentWord.mod4_core }}</p>
+        <div class="study-card-outer flex justify-center flex-1 w-full px-3 md:px-10 pb-10 min-h-0">
+          <div class="study-card-inner w-full max-w-study" v-if="state.currentWord">
+            <transition :name="state.transitionName" mode="out-in">
+              <div id="word-card" :key="state.currentWordIndex"
+                :class="['card', { 'card-mastered': isWordMasteredHighlight(state.currentWord) }]">
+                <div class="word-card-layout">
+                  <div class="word-card-col word-card-col-head">
+                    <div class="card-header">
+                      <div v-if="state.settings.recallMode === 'cn2en'" class="mb-4">
+                        <div class="relative inline-block px-4 py-1">
+                          <span class="text-4xl font-bold text-white">{{ state.currentWord.meaning }}</span>
+                        </div>
+                      </div>
+                      <div v-else>
+                        <div class="flex justify-center items-center gap-4 mb-3">
+                          <h2 class="word-title">{{ state.currentWord.word }}</h2>
+                          <div class="flex gap-2">
+                            <button type="button" @click="playAudio(state.currentWord.word, 1)" class="audio-btn">
+                              <i class="ph-fill ph-speaker-high"></i>
+                              <span class="audio-label">UK</span>
+                            </button>
+                            <button type="button" @click="playAudio(state.currentWord.word, 2)" class="audio-btn">
+                              <i class="ph-fill ph-speaker-high"></i>
+                              <span class="audio-label">US</span>
+                            </button>
+                          </div>
+                        </div>
+                        <p class="phonetic">{{ state.currentWord.phonetic }}
+                          <span v-if="state.currentWord.pos" class="pos">[{{ state.currentWord.pos }}]</span>
+                        </p>
+                      </div>
+
+                      <div class="input-container" v-if="state.settings.recallMode !== 'all'">
+                        <input v-model="state.userInput" :class="['input-primary', isTypingCorrect ? 'is-correct' : '']"
+                          placeholder="输入拼写/释义并回车确认...">
+                      </div>
+
+                      <div class="relative inline-block px-4 py-2" v-if="state.settings.recallMode !== 'cn2en'">
+                        <div v-if="state.settings.enableReviewMode" class="mask-overlay"
+                          @click="state.settings.enableReviewMode = !state.settings.enableReviewMode"></div>
+                        <span class="text-xl font-bold">{{ state.currentWord.meaning }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="word-card-col word-card-col-body">
+                    <div class="card-body space-y-6">
+                      <div class="module-card module-amber" v-show="state.settings.recallMode === 'all'">
+                        <h3 class="module-title">💡 逻辑纠偏</h3>
+                        <p class="module-content">{{ state.currentWord.mod1_desc }}</p>
+                      </div>
+                      <div class="module-card module-blue relative" v-show="state.settings.recallMode === 'all'">
+                        <h3 class="module-title">🧠 底层逻辑</h3>
+                        <div class="relative">
+                          <div v-if="state.settings.enableReviewMode" class="mask-overlay"
+                            @click="state.settings.enableReviewMode = !state.settings.enableReviewMode"></div>
+                          <p class="module-content">{{ state.currentWord.mod2_desc }}</p>
+                        </div>
+                      </div>
+                      <div class="module-card module-purple" v-show="state.settings.recallMode === 'all'">
+                        <h3 class="module-title">🔄 常考同义词</h3>
+                        <div class="flex items-baseline gap-2">
+                          <span class="font-bold text-gray-800">{{ state.currentWord.mod3_word }}</span>
+                          <span class="relative px-2">
+                            <div v-if="state.settings.enableReviewMode" class="mask-overlay"
+                              @click="state.settings.enableReviewMode = !state.settings.enableReviewMode"></div>
+                            <span class="text-gray-500 text-sm">{{ state.currentWord.mod3_meaning }}</span>
+                          </span>
+                        </div>
+                      </div>
+                      <div class="example-card" v-show="state.settings.recallMode === 'all'">
+                        <div class="example-header">● 工作话术补丁</div>
+                        <div class="p-6 space-y-4">
+                          <p class="example-en">"{{ state.currentWord.mod4_en }}"</p>
+                          <div class="relative p-4 bg-slate-50 rounded-lg">
+                            <div v-if="state.settings.enableReviewMode" class="mask-overlay"
+                              @click="state.settings.enableReviewMode = !state.settings.enableReviewMode"></div>
+                            <div class="space-y-3">
+                              <p class="example-zh">📌 {{ state.currentWord.mod4_zh }}</p>
+                              <p class="example-core">🎯 {{ state.currentWord.mod4_core }}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="word-card-col word-card-col-foot">
+                    <div class="card-footer">
+                      <div class="card-footer-marks flex gap-3 mb-6">
+                        <button type="button" @click="mark('unknown')" class="btn-mark btn-red">1 不认识</button>
+                        <button type="button" @click="mark('vague')" class="btn-mark btn-amber">2 模糊</button>
+                        <button type="button" @click="mark('known')" class="btn-mark btn-green-fill">3 认识了</button>
+                      </div>
+                      <div class="flex justify-between items-center text-gray-400 text-xs px-2">
+                        <button type="button" @click="prevWord" class="nav-word-btn">← 上一个</button>
+                        <span>
+                          {{ state.settings.enableRandomMode ? '乱序' : '顺序' }} ·
+                          {{ state.settings.recallMode === 'en2cn' ? '英→中' : state.settings.recallMode === 'cn2en' ? '中→英' : '全部' }}
+                          <span v-if="state.mastery[state.currentWord.word] === 'unknown'" class="ml-2 text-red-500 font-bold">【不认识】</span>
+                          <span v-else-if="state.mastery[state.currentWord.word] === 'vague'" class="ml-2 text-amber-500 font-bold">【模糊】</span>
+                        </span>
+                        <button type="button" @click="nextWord" class="nav-word-btn">下一个 →</button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div class="card-footer">
-              <div class="flex gap-3 mb-6">
-                <button @click="mark('unknown')" class="btn-mark btn-red">1 不认识</button>
-                <button @click="mark('vague')" class="btn-mark btn-amber">2 模糊</button>
-                <button @click="mark('known')" class="btn-mark btn-green-fill">3 认识了</button>
-              </div>
-              <div class="flex justify-between items-center text-gray-400 text-xs px-2">
-                <button @click="prevWord" class="hover:text-blue-500 transition">← 上一个</button>
-                <span>
-                  {{ state.settings.enableRandomMode ? '乱序模式' : '顺序模式' }} |
-                  {{ state.settings.recallMode === 'en2cn' ? '英→中' : state.settings.recallMode === 'cn2en' ? '中→英' :
-                  '全部' }}
-                  <span v-if="state.mastery[state.currentWord.word] === 'unknown'"
-                    class="ml-2 text-red-500 font-bold">【不认识】</span>
-                  <span v-else-if="state.mastery[state.currentWord.word] === 'vague'"
-                    class="ml-2 text-amber-500 font-bold">【模糊】</span>
-                </span>
-                <button @click="nextWord" class="hover:text-blue-500 transition">下一个 →</button>
-              </div>
-            </div>
+            </transition>
           </div>
-          </transition>
         </div>
       </main>
     </div>
 
-    <!-- 云端 / 游客 认证遮罩 -->
-    <div v-if="state.showAuthOverlay" class="auth-overlay">
-      <div class="auth-panel">
-        <h2 class="auth-title">登录 GitHub Gist（可选）</h2>
-        <p class="auth-desc">填写 Personal Access Token 与 Gist ID 后，进度可同步到 Gist 中的 <code>progress.json</code>。Token 仅保存在本机 localStorage，不会写入源码。</p>
-        <label class="auth-label">GitHub Token</label>
-        <input v-model="state.authForm.token" type="password" autocomplete="off" class="auth-input" placeholder="ghp_…">
-        <label class="auth-label">Gist ID</label>
-        <input v-model="state.authForm.gistId" type="text" class="auth-input" placeholder="32 位十六进制 ID">
-        <div class="auth-actions">
-          <button type="button" class="btn-modal-primary auth-btn" @click="submitCloudLogin">登录并刷新</button>
-          <button type="button" class="btn-modal-dark auth-btn" @click="enterGuestMode">游客模式（仅用本机 + 导入导出）</button>
-          <button v-if="canDismissAuthOverlay" type="button" class="btn-modal-dark auth-btn" @click="closeAuthOverlay">稍后再说</button>
-        </div>
+    <div v-if="state.showSyncDrawer" class="sync-drawer-backdrop" @click="closeSyncDrawer"></div>
+    <aside v-if="state.showSyncDrawer" class="sync-drawer" aria-label="同步与备份">
+      <div class="sync-drawer-head">
+        <h2 class="sync-drawer-title">🔐 开启云端同步</h2>
+        <button type="button" class="sync-drawer-close" @click="closeSyncDrawer" aria-label="关闭">×</button>
       </div>
-    </div>
+      <p class="sync-drawer-status" v-if="isCloudConnected()">🟢 云端已连接 · Gist …{{ gistIdSuffix }}</p>
+      <p class="sync-drawer-status sync-drawer-status--muted" v-else>🟡 离线模式（数据仅保存在当前浏览器）</p>
+      <p class="sync-drawer-desc">连接 GitHub 后，即可在 S24 Ultra 和 Mac 之间同步学习进度。您的数据将通过加密方式存储，安全且私密。</p>
+      <label class="auth-label">授权令牌 (Token)</label>
+      <input v-model="state.authForm.token" type="password" autocomplete="off" class="auth-input" placeholder="ghp_…">
+      <label class="auth-label">云端进度 ID</label>
+      <input v-model="state.authForm.gistId" type="text" class="auth-input" placeholder="32 位十六进制 ID">
+      <div class="sync-drawer-actions">
+        <button type="button" class="btn-modal-primary sync-drawer-btn" @click="submitCloudLogin">确认连接</button>
+        <button type="button" class="btn-modal-dark sync-drawer-btn" @click="enterGuestMode">离线使用（仅存本机）</button>
+        <button v-if="canDismissAuthOverlay" type="button" class="btn-modal-dark sync-drawer-btn" @click="closeSyncDrawer">稍后再说</button>
+      </div>
+      <div class="sync-drawer-divider"></div>
+      <p class="settings-heading">本地备份</p>
+      <div class="sync-drawer-actions sync-drawer-actions--row">
+        <button type="button" class="btn-modal-primary sync-drawer-btn" @click="exportData">导出 JSON</button>
+        <button type="button" class="btn-modal-dark sync-drawer-btn" @click="state.showImporter = true; closeSyncDrawer()">导入 JSON</button>
+      </div>
+    </aside>
 
-    <!-- 导入弹窗 -->
     <div v-if="state.showImporter" class="modal-overlay">
       <div class="modal-content">
         <h3 class="modal-title">导入 JSON 词库</h3>
@@ -209,13 +229,12 @@
             placeholder="粘贴数组..."></textarea>
         </div>
         <div class="flex gap-3">
-          <button @click="handleImport" class="btn-modal-primary">确定导入</button>
-          <button @click="state.showImporter = false" class="btn-modal-dark">关闭</button>
+          <button type="button" @click="handleImport" class="btn-modal-primary">确定导入</button>
+          <button type="button" @click="state.showImporter = false" class="btn-modal-dark">关闭</button>
         </div>
       </div>
     </div>
 
-    <!-- 统计弹窗 -->
     <div v-if="state.showStats" class="modal-overlay">
       <div class="modal-content">
         <h3 class="modal-title flex items-center gap-2"><i class="ph ph-chart-line"></i> 学习统计</h3>
@@ -232,16 +251,16 @@
                 :style="{ width: (stats[key] / (state.wordBank.length || 1) * 100) + '%' }"></div>
             </div>
           </div>
-          <button @click="reviewWeak" :disabled="stats.unknown + stats.vague === 0" class="btn-modal-rose">🔁
+          <button type="button" @click="reviewWeak" :disabled="stats.unknown + stats.vague === 0" class="btn-modal-rose">🔁
             复习未掌握</button>
           <div class="grid grid-cols-2 gap-3">
-            <button @click="reviewOnlyUnknown" :disabled="stats.unknown === 0" class="btn-modal-rose-dark">🔴
+            <button type="button" @click="reviewOnlyUnknown" :disabled="stats.unknown === 0" class="btn-modal-rose-dark">🔴
               只复习不认识</button>
-            <button @click="reviewOnlyVague" :disabled="stats.vague === 0" class="btn-modal-amber">🟡 只复习模糊</button>
+            <button type="button" @click="reviewOnlyVague" :disabled="stats.vague === 0" class="btn-modal-amber">🟡 只复习模糊</button>
           </div>
         </div>
         <div class="mt-6 text-right">
-          <button @click="state.showStats = false" class="btn-modal-dark">关闭</button>
+          <button type="button" @click="state.showStats = false" class="btn-modal-dark">关闭</button>
         </div>
       </div>
     </div>
