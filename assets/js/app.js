@@ -125,6 +125,7 @@ createApp({
       showSettingsMenu: false,
       localModeLocked: false,
       cloudModeLocked: false,
+      showAllWordInfo: false,
     });
 
     _stateRef = state;
@@ -187,6 +188,10 @@ createApp({
         localStorage.removeItem(LS_LOCAL_MODE_LOCK);
         localStorage.removeItem(LS_CLOUD_MODE_LOCK);
       }
+    };
+
+    const toggleShowAllWordInfo = () => {
+      state.showAllWordInfo = !state.showAllWordInfo;
     };
 
     const isWordMasteredHighlight = (w) => w && w._id && state.mastered_ids.includes(w._id);
@@ -295,6 +300,7 @@ createApp({
       state.currentWordIndex = state.currentIndex;
       state.settings.enableReviewMode = true;
       state.userInput = '';
+      state.showAllWordInfo = false;
       save();
     };
 
@@ -793,6 +799,7 @@ createApp({
       handlePanelTouchStart,
       handlePanelTouchEnd,
       unlockModes,
+      toggleShowAllWordInfo,
       fetchManifest,
       loadSelectedDay,
       loadAllFromManifest,

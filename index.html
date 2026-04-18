@@ -42,16 +42,17 @@
       <main class="study-main custom-scroll flex-1 overflow-y-auto flex flex-col min-h-0">
         <div class="study-chrome" v-if="state.currentWord">
           <div class="learning-toolbar" role="toolbar" aria-label="学习工具">
-            <button type="button" class="learn-icon-btn" :class="{ active: state.settings.enableRandomMode }" title="乱序 (R)"
-              aria-label="乱序" @click="toggleRandomMode">
+            <button type="button" class="learn-icon-btn" :class="{ active: state.settings.enableRandomMode }"
+              title="乱序 (R)" aria-label="乱序" @click="toggleRandomMode">
               <i class="ph ph-shuffle" aria-hidden="true"></i>
             </button>
-            <button type="button" class="learn-icon-btn" :class="{ active: state.settings.enableReviewMode }" title="遮挡释义 (Space)"
-              aria-label="遮挡释义" @click="state.settings.enableReviewMode = !state.settings.enableReviewMode">
+            <button type="button" class="learn-icon-btn" :class="{ active: state.settings.enableReviewMode }"
+              title="遮挡释义 (Space)" aria-label="遮挡释义"
+              @click="state.settings.enableReviewMode = !state.settings.enableReviewMode">
               <i class="ph" :class="state.settings.enableReviewMode ? 'ph-eye-slash' : 'ph-eye'" aria-hidden="true"></i>
             </button>
-            <button type="button" class="learn-icon-btn" :class="{ active: state.settings.recallMode !== 'en2cn' }" title="记忆模式 (M)"
-              aria-label="切换记忆模式" @click="toggleRecallMode">
+            <button type="button" class="learn-icon-btn" :class="{ active: state.settings.recallMode !== 'en2cn' }"
+              title="记忆模式 (M)" aria-label="切换记忆模式" @click="toggleRecallMode">
               <i class="ph ph-text-aa" aria-hidden="true"></i>
             </button>
             <button type="button" class="learn-icon-btn" title="统计与复习" aria-label="统计与复习" @click="openStatsAndReview">
@@ -97,6 +98,14 @@
                           placeholder="输入拼写/释义并回车确认...">
                       </div>
 
+                      <div class="cn2en-answer" v-if="state.settings.recallMode === 'cn2en'">
+                        <div class="relative inline-block px-4 py-2">
+                          <div v-if="state.settings.enableReviewMode" class="mask-overlay"
+                            @click="state.settings.enableReviewMode = !state.settings.enableReviewMode"></div>
+                          <span class="text-xl font-bold">{{ state.currentWord.word }}</span>
+                        </div>
+                      </div>
+
                       <div class="relative inline-block px-4 py-2" v-if="state.settings.recallMode !== 'cn2en'">
                         <div v-if="state.settings.enableReviewMode" class="mask-overlay"
                           @click="state.settings.enableReviewMode = !state.settings.enableReviewMode"></div>
@@ -107,11 +116,11 @@
 
                   <div class="word-card-col word-card-col-body">
                     <div class="card-body space-y-6">
-                      <div class="module-card module-amber" v-show="state.settings.recallMode === 'all'">
+                      <div class="module-card module-amber">
                         <h3 class="module-title">💡 逻辑纠偏</h3>
                         <p class="module-content">{{ state.currentWord.mod1_desc }}</p>
                       </div>
-                      <div class="module-card module-blue relative" v-show="state.settings.recallMode === 'all'">
+                      <div class="module-card module-blue relative">
                         <h3 class="module-title">🧠 底层逻辑</h3>
                         <div class="relative">
                           <div v-if="state.settings.enableReviewMode" class="mask-overlay"
@@ -119,7 +128,7 @@
                           <p class="module-content">{{ state.currentWord.mod2_desc }}</p>
                         </div>
                       </div>
-                      <div class="module-card module-purple" v-show="state.settings.recallMode === 'all'">
+                      <div class="module-card module-purple">
                         <h3 class="module-title">🔄 常考同义词</h3>
                         <div class="flex items-baseline gap-2">
                           <span class="font-bold text-gray-800">{{ state.currentWord.mod3_word }}</span>
@@ -130,7 +139,7 @@
                           </span>
                         </div>
                       </div>
-                      <div class="example-card" v-show="state.settings.recallMode === 'all'">
+                      <div class="example-card">
                         <div class="example-header">● 工作话术补丁</div>
                         <div class="p-6 space-y-4">
                           <p class="example-en">"{{ state.currentWord.mod4_en }}"</p>
@@ -158,9 +167,12 @@
                         <button type="button" @click="prevWord" class="nav-word-btn">← 上一个</button>
                         <span>
                           {{ state.settings.enableRandomMode ? '乱序' : '顺序' }} ·
-                          {{ state.settings.recallMode === 'en2cn' ? '英→中' : state.settings.recallMode === 'cn2en' ? '中→英' : '全部' }}
-                          <span v-if="state.mastery[state.currentWord.word] === 'unknown'" class="ml-2 text-red-500 font-bold">【不认识】</span>
-                          <span v-else-if="state.mastery[state.currentWord.word] === 'vague'" class="ml-2 text-amber-500 font-bold">【模糊】</span>
+                          {{ state.settings.recallMode === 'en2cn' ? '英→中' : state.settings.recallMode === 'cn2en' ?
+                          '中→英' : '全部' }}
+                          <span v-if="state.mastery[state.currentWord.word] === 'unknown'"
+                            class="ml-2 text-red-500 font-bold">【不认识】</span>
+                          <span v-else-if="state.mastery[state.currentWord.word] === 'vague'"
+                            class="ml-2 text-amber-500 font-bold">【模糊】</span>
                         </span>
                         <button type="button" @click="nextWord" class="nav-word-btn">下一个 →</button>
                       </div>
@@ -175,7 +187,7 @@
     </div>
 
     <div v-if="state.showSettingsMenu" class="settings-screen" @click="closeSettingsMenu"></div>
-    <div v-if="state.showSettingsMenu" class="settings-panel settings-panel-global" @click.stop 
+    <div v-if="state.showSettingsMenu" class="settings-panel settings-panel-global" @click.stop
       @touchstart="handlePanelTouchStart" @touchend="handlePanelTouchEnd('settings')">
       <p class="settings-heading">词库与管理</p>
       <label class="settings-label">数据日文件</label>
@@ -196,8 +208,8 @@
     </div>
 
     <div v-if="state.showSyncDrawer" class="sync-drawer-backdrop" @click="closeSyncDrawer"></div>
-    <aside v-if="state.showSyncDrawer" class="sync-drawer" aria-label="同步与备份"
-      @touchstart="handlePanelTouchStart" @touchend="handlePanelTouchEnd('sync')">
+    <aside v-if="state.showSyncDrawer" class="sync-drawer" aria-label="同步与备份" @touchstart="handlePanelTouchStart"
+      @touchend="handlePanelTouchEnd('sync')">
       <section class="mode-section mode-cloud">
         <p class="mode-title">🔐 云端模式</p>
         <p class="mode-desc">连接 GitHub 即可在多端同步学习进度。</p>
@@ -210,7 +222,8 @@
         <div class="sync-drawer-actions">
           <button type="button" class="btn-modal-primary sync-drawer-btn" @click="submitCloudLogin"
             :disabled="!canUseCloudLogin">确认连接</button>
-          <button v-if="isCloudLocked" type="button" class="btn-modal-dark sync-drawer-btn" @click="unlockModes" title="解除云端锁定">🔓 解除锁定</button>
+          <button v-if="isCloudLocked" type="button" class="btn-modal-dark sync-drawer-btn" @click="unlockModes"
+            title="解除云端锁定">🔓 解除锁定</button>
         </div>
       </section>
       <div class="sync-drawer-divider"></div>
@@ -221,10 +234,12 @@
         <div class="sync-drawer-actions sync-drawer-actions--row">
           <button type="button" class="btn-modal-dark sync-drawer-btn"
             @click="state.showImporter = true; closeSyncDrawer()" :disabled="!canUseLocalManual">导入 JSON</button>
-          <button type="button" class="btn-modal-primary sync-drawer-btn" @click="exportData" :disabled="!canUseLocalManual">导出 JSON</button>
+          <button type="button" class="btn-modal-primary sync-drawer-btn" @click="exportData"
+            :disabled="!canUseLocalManual">导出 JSON</button>
         </div>
         <div class="sync-drawer-actions">
-          <button v-if="isLocalLocked" type="button" class="btn-modal-dark sync-drawer-btn" @click="unlockModes" title="解除本地锁定">🔓 解除锁定</button>
+          <button v-if="isLocalLocked" type="button" class="btn-modal-dark sync-drawer-btn" @click="unlockModes"
+            title="解除本地锁定">🔓 解除锁定</button>
         </div>
       </section>
       <div class="flex-1"></div>
@@ -268,12 +283,15 @@
                 :style="{ width: (stats[key] / (state.wordBank.length || 1) * 100) + '%' }"></div>
             </div>
           </div>
-          <button type="button" @click="reviewWeak" :disabled="stats.unknown + stats.vague === 0" class="btn-modal-rose">🔁
+          <button type="button" @click="reviewWeak" :disabled="stats.unknown + stats.vague === 0"
+            class="btn-modal-rose">🔁
             复习未掌握</button>
           <div class="grid grid-cols-2 gap-3">
-            <button type="button" @click="reviewOnlyUnknown" :disabled="stats.unknown === 0" class="btn-modal-rose-dark">🔴
+            <button type="button" @click="reviewOnlyUnknown" :disabled="stats.unknown === 0"
+              class="btn-modal-rose-dark">🔴
               只复习不认识</button>
-            <button type="button" @click="reviewOnlyVague" :disabled="stats.vague === 0" class="btn-modal-amber">🟡 只复习模糊</button>
+            <button type="button" @click="reviewOnlyVague" :disabled="stats.vague === 0" class="btn-modal-amber">🟡
+              只复习模糊</button>
           </div>
         </div>
         <div class="mt-6 text-right">
