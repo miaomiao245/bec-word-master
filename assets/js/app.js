@@ -29,33 +29,59 @@ const gistHeaders = () => {
 const parseProgressJson = (text) => {
   try {
     const o = JSON.parse(text || '{}');
-    const ids = Array.isArray(o.mastered_ids) ? o.mastered_ids.filter(Boolean) : [];
-    return { mastered_ids: ids, last_updated: o.last_updated || new Date().toISOString() };
+    
+    // 新格式：word_status 对象
+    if (o.word_status && typeof o.word_status === 'object') {
+      return {
+        word_status: o.word_status,
+        last_updated: o.last_updated || new Date().toISOString(),
+      };
+    }
+    
+    // 向下兼容：旧格式 mastered_ids 转换为 word_status（所有 ID 标记为 known）
+    if (Array.isArray(o.mastered_ids)) {
+      const word_status = {};
+      o.mastered_ids.filter(Boolean).forEach((id) => {
+        word_status[id] = 'known';
+      });
+      return {
+        word_status,
+        last_updated: o.last_updated || new Date().toISOString(),
+      };
+    }
+    
+    return {
+      word_status: {},
+      last_updated: new Date().toISOString(),
+    };
   } catch {
-    return { mastered_ids: [], last_updated: new Date().toISOString() };
+    return {
+      word_status: {},
+      last_updated: new Date().toISOString(),
+    };
   }
 };
 
 const fetchGistProgressRemote = async () => {
   const gistId = readGistId();
   const token = readToken();
-  if (!gistId || !token) return { mastered_ids: [], last_updated: null };
+  if (!gistId || !token) return { word_status: {}, last_updated: null };
   const res = await fetch(`https://api.github.com/gists/${gistId}`, {
     headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
   });
   if (!res.ok) throw new Error(`Gist GET ${res.status}`);
   const data = await res.json();
   const file = data.files && (data.files['progress.json'] || data.files['Progress.json']);
-  if (!file || !file.content) return { mastered_ids: [], last_updated: null };
+  if (!file || !file.content) return { word_status: {}, last_updated: null };
   return parseProgressJson(file.content);
 };
 
-const patchGistProgressRemote = async (mastered_ids) => {
+const patchGistProgressRemote = async (word_status) => {
   const gistId = readGistId();
   const token = readToken();
   if (!gistId || !token) return;
   const body = {
-    mastered_ids: [...new Set(mastered_ids)],
+    word_status: word_status || {},
     last_updated: new Date().toISOString(),
   };
   const res = await fetch(`https://api.github.com/gists/${gistId}`, {
@@ -77,8 +103,26 @@ const patchGistProgressRemote = async (mastered_ids) => {
 
 const mergeLocalProgressToGist = async () => {
   const remote = await fetchGistProgressRemote();
-  const merged = new Set([...remote.mastered_ids, ...readLocalMasteredIdsFromState()]);
-  await patchGistProgressRemote([...merged]);
+  const remoteStatus = remote.word_status || {};
+  
+  // 生成本地 word_status（在 _stateRef 可用时）
+  const localStatus = {};
+  if (_stateRef) {
+    const bank = _stateRef.originalWordBank || [];
+    const mastery = _stateRef.mastery || {};
+    bank.forEach((w) => {
+      if (w._id && mastery[w.word]) {
+        localStatus[w._id] = mastery[w.word];
+      }
+    });
+  }
+  
+  // 合并：云端优先，本地补充
+  const merged = {};
+  Object.assign(merged, remoteStatus);
+  Object.assign(merged, localStatus);
+  
+  await patchGistProgressRemote(merged);
 };
 
 /** 从当前 reactive state 读取（登录流程在 reload 前调用） */
@@ -257,16 +301,39 @@ createApp({
       state.mastered_ids = [...set];
     };
 
+    // 生成当前的 word_status 对象（包含所有状态：known、vague、unknown）
+    const generateWordStatus = () => {
+      const status = {};
+      state.originalWordBank.forEach((w) => {
+        if (w._id && state.mastery[w.word]) {
+          status[w._id] = state.mastery[w.word];
+        }
+      });
+      return status;
+    };
+
     const pushGistProgress = async () => {
       if (!isCloudConnected()) return;
-      syncMasteredIdsFromMastery();
       try {
+        // 生成当前的 word_status
+        const localStatus = generateWordStatus();
+        
         // 先读取云端已有的进度
         const remote = await fetchGistProgressRemote();
-        // 合并本地和云端的 ID（取并集，确保只增不减）
-        const merged = new Set([...remote.mastered_ids, ...state.mastered_ids]);
+        const remoteStatus = remote.word_status || {};
+        
+        // 合并：取并集，云端优先（云端如果有该 ID 就用云端的状态）
+        const merged = {};
+        Object.assign(merged, remoteStatus);
+        // 再加入本地状态（如果云端没有该 ID 就用本地的）
+        Object.entries(localStatus).forEach(([id, status]) => {
+          if (!merged[id]) {
+            merged[id] = status;
+          }
+        });
+        
         // 统一时间戳并上传合并后的数据
-        await patchGistProgressRemote([...merged]);
+        await patchGistProgressRemote(merged);
       } catch (e) {
         console.error('Gist 同步失败', e);
       }
@@ -677,9 +744,41 @@ createApp({
     const mergeRemoteMastered = async () => {
       if (!isCloudConnected()) return;
       try {
+        // 拉取云端最新的 word_status
         const remote = await fetchGistProgressRemote();
-        const set = new Set([...state.mastered_ids, ...remote.mastered_ids]);
-        state.mastered_ids = [...set];
+        const remoteStatus = remote.word_status || {};
+        
+        // 创建 ID 到 word 的映射表
+        const idToWord = {};
+        state.originalWordBank.forEach((w) => {
+          if (w._id) idToWord[w._id] = w.word;
+        });
+        
+        // 强力双向合并：将云端状态强制更新到本地 state.mastery
+        Object.entries(remoteStatus).forEach(([id, status]) => {
+          const word = idToWord[id];
+          if (word) {
+            state.mastery[word] = status;
+          }
+        });
+        
+        // 重新生成 mastered_ids（用于向后兼容和本地存储）
+        const merged = {};
+        Object.assign(merged, remoteStatus);
+        
+        // 加入本地有但云端没有的状态
+        state.originalWordBank.forEach((w) => {
+          if (w._id && state.mastery[w.word] && !merged[w._id]) {
+            merged[w._id] = state.mastery[w.word];
+          }
+        });
+        
+        // 从合并后的状态重建 mastered_ids（only 'known' 状态）
+        state.mastered_ids = Object.entries(merged)
+          .filter(([_, status]) => status === 'known')
+          .map(([id, _]) => id);
+        
+        // 保存到本地
         save();
       } catch (e) {
         console.warn('拉取 Gist 进度失败（可离线继续）', e);
@@ -714,24 +813,57 @@ createApp({
       
       state.syncInProgress = true;
       try {
-        // 确保本地状态是最新的
-        syncMasteredIdsFromMastery();
+        // 第一步：生成当前的 word_status
+        const localStatus = generateWordStatus();
         
-        // 先读取云端已有的进度
+        // 第二步：拉取云端最新状态
         const remote = await fetchGistProgressRemote();
+        const remoteStatus = remote.word_status || {};
         
-        // 合并本地和云端的 ID（取并集，确保只增不减）
-        const merged = new Set([...remote.mastered_ids, ...state.mastered_ids]);
-        state.mastered_ids = [...merged];
+        // 第三步：合并本地和云端状态
+        // 规则：云端状态优先，本地补充
+        const merged = {};
+        Object.assign(merged, remoteStatus); // 先加入云端所有状态
+        Object.entries(localStatus).forEach(([id, status]) => {
+          if (!merged[id]) {
+            // 仅当云端没有该 ID 时，才加入本地状态
+            merged[id] = status;
+          }
+        });
         
-        // 上传合并后的数据
-        await patchGistProgressRemote(state.mastered_ids);
+        // 第四步：强制更新本地 state.mastery
+        const idToWord = {};
+        state.originalWordBank.forEach((w) => {
+          if (w._id) idToWord[w._id] = w.word;
+        });
+        
+        let statusChangedCount = 0;
+        Object.entries(merged).forEach(([id, status]) => {
+          const word = idToWord[id];
+          if (word && state.mastery[word] !== status) {
+            state.mastery[word] = status;
+            statusChangedCount++;
+          }
+        });
+        
+        // 重建 mastered_ids（只包含 'known' 状态）
+        state.mastered_ids = Object.entries(merged)
+          .filter(([_, status]) => status === 'known')
+          .map(([id, _]) => id);
+        
+        // 第五步：推送合并后的最终状态到云端
+        await patchGistProgressRemote(merged);
         
         // 保存到本地
         save();
         
-        // 显示成功提示
-        alert(`✅ 同步成功！当前已掌握 ${state.mastered_ids.length} 个单词`);
+        // 获取最新的统计数据
+        const knownCount = state.mastered_ids.length;
+        const vagueCount = Object.values(state.mastery).filter((s) => s === 'vague').length;
+        const unknownCount = Object.values(state.mastery).filter((s) => s === 'unknown').length;
+        
+        // 显示成功提示，展示同步的单词状态数量
+        alert(`✅ 同步成功！\n已同步 ${Object.keys(merged).length} 个单词状态\n已掌握: ${knownCount} | 模糊: ${vagueCount} | 未掌握: ${unknownCount}`);
       } catch (e) {
         console.error('手动同步失败', e);
         alert('❌ 同步失败：' + e.message);
