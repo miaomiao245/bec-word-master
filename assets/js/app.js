@@ -126,10 +126,12 @@ createApp({
     const reviewOnlyVague = () => { state.reviewFilter = 'vague'; jump(findNextFilteredIndex()); state.showStats = false; };
 
     // 导入
+    // 导入
     const processImportData = (content) => {
       try {
         const data = JSON.parse(content.trim());
-        const words = Array.isArray(data) ? data : data.bank;
+        const words = Array.isArray(data) ? data : (data.bank || []);
+
         if (words.length) {
           state.originalWordBank = words;
           state.wordBank = data.randomMode ? shuffleArray([...words]) : [...words];
@@ -140,10 +142,16 @@ createApp({
           state.reviewFilter = null;
           state.currentWord = state.wordBank[state.currentIndex];
           state.showImporter = false;
-          alert("导入成功");
+
+          alert(`✅ 导入成功！共加载 ${words.length} 个单词`);
           save();
+        } else {
+          alert("⚠️ 导入的文件中没有找到单词数据");
         }
-      } catch (e) { alert("失败：" + e.message); }
+      } catch (e) {
+        // 结合你的 e.message，既专业又贴心
+        alert("❌ 导入解析出错\n错误信息：" + e.message);
+      }
     };
 
     const handleFileUpload = (e) => {
