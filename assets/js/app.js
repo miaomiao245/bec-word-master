@@ -123,8 +123,8 @@ createApp({
       dataLoadBusy: false,
       showSyncDrawer: false,
       showSettingsMenu: false,
-      localModeLocked: localStorage.getItem(LS_LOCAL_MODE_LOCK) === '1',
-      cloudModeLocked: localStorage.getItem(LS_CLOUD_MODE_LOCK) === '1',
+      localModeLocked: false,
+      cloudModeLocked: false,
     });
 
     _stateRef = state;
@@ -155,6 +155,29 @@ createApp({
 
     const closeSettingsMenu = () => {
       state.showSettingsMenu = false;
+    };
+
+    let panelTouchStartX = 0;
+
+    const handlePanelTouchStart = (e) => {
+      panelTouchStartX = e.touches[0].clientX;
+    };
+
+    const handlePanelTouchEnd = (panelType) => {
+      return (e) => {
+        const touchEndX = e.changedTouches[0].clientX;
+        const deltaX = touchEndX - panelTouchStartX;
+        const minSwipeDistance = 50; // 最小滑动距离
+        
+        // 从左往右滑动超过阈值，关闭面板
+        if (deltaX > minSwipeDistance) {
+          if (panelType === 'settings') {
+            closeSettingsMenu();
+          } else if (panelType === 'sync') {
+            closeSyncDrawer();
+          }
+        }
+      };
     };
 
     const unlockModes = () => {
@@ -486,6 +509,8 @@ createApp({
           state.showImporter = false;
           state.cloudModeLocked = true;
           localStorage.setItem(LS_CLOUD_MODE_LOCK, '1');
+          localStorage.setItem(LS_LOCAL_MODE_LOCK, '0');
+          state.localModeLocked = false;
           syncMasteredIdsFromMastery();
           alert(`✅ 导入成功！共加载 ${words.length} 个单词`);
           save();
@@ -570,8 +595,10 @@ createApp({
       localStorage.setItem(LS_TOKEN, token);
       localStorage.setItem(LS_GIST, gistId);
       localStorage.removeItem(LS_GUEST);
-      localStorage.setItem(LS_LOCAL_MODE_LOCK, '1');
+      localStorage.removeItem(LS_CLOUD_MODE_LOCK);
+      state.cloudModeLocked = false;
       state.localModeLocked = true;
+      localStorage.setItem(LS_LOCAL_MODE_LOCK, '1');
       sessionStorage.removeItem(SS_WAS_GUEST);
       if (wasGuest && confirm('是否将当前的本地进度同步至云端？')) {
         try {
@@ -600,6 +627,37 @@ createApp({
       syncMasteredIdsFromMastery();
     };
 
+    const initializeModeLocksOnLoad = () => {
+      const hasValidToken = !!readToken();
+      const hasUserImportedData = !!localStorage.getItem(LS_APP);
+      
+      // 清理旧的、不合法的锁定标记
+      const oldLocalLock = localStorage.getItem(LS_LOCAL_MODE_LOCK);
+      const oldCloudLock = localStorage.getItem(LS_CLOUD_MODE_LOCK);
+      
+      // 如果有本地锁但没有实际导入数据，清除它
+      if (oldLocalLock === '1' && !hasUserImportedData) {
+        localStorage.removeItem(LS_LOCAL_MODE_LOCK);
+      }
+      
+      // 初始化状态：确定哪个模式应该被锁定
+      // 原则：只有当已真正操作过才锁定
+      if (hasValidToken) {
+        // 已登录云端：锁定本地模式
+        state.localModeLocked = true;
+      } else if (hasUserImportedData && oldLocalLock === '1') {
+        // 曾导入过数据：锁定云端模式
+        state.cloudModeLocked = true;
+      } else {
+        // 初始状态或不确定：都解锁
+        state.localModeLocked = false;
+        state.cloudModeLocked = false;
+      }
+      
+      localStorage.setItem(LS_LOCAL_MODE_LOCK, state.localModeLocked ? '1' : '0');
+      localStorage.setItem(LS_CLOUD_MODE_LOCK, state.cloudModeLocked ? '1' : '0');
+    };
+
     const mergeRemoteMastered = async () => {
       if (!isCloudConnected()) return;
       try {
@@ -613,6 +671,7 @@ createApp({
     };
 
     onMounted(async () => {
+      initializeModeLocksOnLoad();
       hydrateFromLocalStorage();
       await fetchManifest(true);
       await mergeRemoteMastered();
@@ -731,6 +790,8 @@ createApp({
       openSyncDrawer,
       closeSyncDrawer,
       closeSettingsMenu,
+      handlePanelTouchStart,
+      handlePanelTouchEnd,
       unlockModes,
       fetchManifest,
       loadSelectedDay,

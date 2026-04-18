@@ -175,7 +175,8 @@
     </div>
 
     <div v-if="state.showSettingsMenu" class="settings-screen" @click="closeSettingsMenu"></div>
-    <div v-if="state.showSettingsMenu" class="settings-panel settings-panel-global" @click.stop>
+    <div v-if="state.showSettingsMenu" class="settings-panel settings-panel-global" @click.stop 
+      @touchstart="handlePanelTouchStart" @touchend="handlePanelTouchEnd('settings')">
       <p class="settings-heading">词库与管理</p>
       <label class="settings-label">数据日文件</label>
       <select v-model="state.selectedDayFile" class="settings-select" :disabled="state.dataLoadBusy">
@@ -189,10 +190,14 @@
         @click="fetchManifest(); closeSettingsMenu()">刷新 manifest 目录</button>
       <p v-if="state.dataLoadMessage" class="settings-msg">{{ state.dataLoadMessage }}</p>
       <div class="flex-1"></div>
+      <div class="flex justify-end">
+        <button type="button" class="btn-panel-close" @click="closeSettingsMenu" title="关闭设置">关闭</button>
+      </div>
     </div>
 
     <div v-if="state.showSyncDrawer" class="sync-drawer-backdrop" @click="closeSyncDrawer"></div>
-    <aside v-if="state.showSyncDrawer" class="sync-drawer" aria-label="同步与备份">
+    <aside v-if="state.showSyncDrawer" class="sync-drawer" aria-label="同步与备份"
+      @touchstart="handlePanelTouchStart" @touchend="handlePanelTouchEnd('sync')">
       <section class="mode-section mode-cloud">
         <p class="mode-title">🔐 云端模式</p>
         <p class="mode-desc">连接 GitHub 即可在多端同步学习进度。</p>
@@ -212,7 +217,7 @@
       <section class="mode-section mode-local">
         <p class="mode-title">🏠 本地模式</p>
         <p class="mode-desc">数据仅保存在当前浏览器。通过手动导入与导出，方便在多设备间保存进度到本地浏览器。</p>
-        <a class="mode-link" href="./README.md" target="_blank" rel="noopener noreferrer">查看 README 迁移说明</a>
+        <a class="mode-link" href="./README.md" target="_blank" rel="noopener noreferrer">查看README了解功能及操作指南</a>
         <div class="sync-drawer-actions sync-drawer-actions--row">
           <button type="button" class="btn-modal-dark sync-drawer-btn"
             @click="state.showImporter = true; closeSyncDrawer()" :disabled="!canUseLocalManual">导入 JSON</button>
@@ -223,6 +228,9 @@
         </div>
       </section>
       <div class="flex-1"></div>
+      <div class="flex justify-end">
+        <button type="button" class="btn-panel-close" @click="closeSyncDrawer" title="关闭同步设置">关闭</button>
+      </div>
     </aside>
 
     <div v-if="state.showImporter" class="modal-overlay">
