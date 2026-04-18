@@ -95,12 +95,13 @@
   -webkit-backdrop-filter: blur(8px);
 }
 .settings-panel {
-  position: fixed; top: 4.25rem; right: 1rem; z-index: 310;
-  min-width: 16rem; max-width: min(96vw, 20rem);
-  padding: 0.85rem; background: #fff; border-radius: 0.75rem;
-  border: 1px solid #e2e8f0; box-shadow: 0 16px 40px rgba(15, 23, 42, 0.15);
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 310;
+  width: min(100vw - 2rem, 22rem); max-width: 100%;
+  background: #fff; box-shadow: -12px 0 40px rgba(0,0,0,0.12);
+  padding: 1rem 1.1rem; overflow-y: auto;
+  animation: sync-drawer-in 0.22s ease-out;
 }
-.settings-panel-global { pointer-events: auto; }
+.settings-panel-global { pointer-events: auto; display: flex; flex-direction: column; min-height: 100%; }
 .settings-heading { font-size: 0.7rem; font-weight: bold; color: #1e3a8a; margin-bottom: 0.5rem; }
 .settings-subheading { font-size: 0.65rem; font-weight: bold; color: #64748b; margin: 0.75rem 0 0.35rem; }
 .settings-label { font-size: 0.65rem; color: #64748b; display: block; margin-bottom: 0.25rem; }
@@ -132,6 +133,7 @@
   background: #fff; box-shadow: -12px 0 40px rgba(0,0,0,0.12);
   padding: 1rem 1.1rem; overflow-y: auto;
   animation: sync-drawer-in 0.22s ease-out;
+  display: flex; flex-direction: column;
 }
 @keyframes sync-drawer-in {
   from { transform: translateX(100%); opacity: 0.9; }
@@ -342,12 +344,6 @@
   .header-left { min-width: 0; }
   .title { font-size: 1rem; }
   .header-counter { font-size: 0.68rem; }
-  .settings-panel {
-    right: 50%;
-    top: 4.4rem;
-    transform: translateX(50%);
-    width: min(92vw, 22rem);
-  }
   .card-footer-marks .btn-mark {
     min-height: 3rem;
     font-size: 1.05rem;

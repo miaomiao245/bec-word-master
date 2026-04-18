@@ -4,6 +4,7 @@ const LS_TOKEN = 'github_token';
 const LS_GIST = 'gist_id';
 const LS_GUEST = 'bec_cloud_guest';
 const LS_LOCAL_MODE_LOCK = 'bec_local_mode_lock';
+const LS_CLOUD_MODE_LOCK = 'bec_cloud_mode_lock';
 const SS_WAS_GUEST = 'bec_was_guest';
 const LS_APP = 'bec_v5_final';
 
@@ -123,6 +124,7 @@ createApp({
       showSyncDrawer: false,
       showSettingsMenu: false,
       localModeLocked: localStorage.getItem(LS_LOCAL_MODE_LOCK) === '1',
+      cloudModeLocked: localStorage.getItem(LS_CLOUD_MODE_LOCK) === '1',
     });
 
     _stateRef = state;
@@ -135,8 +137,10 @@ createApp({
     const canDismissAuthOverlay = computed(() => hasCloudCreds() || isCloudGuest());
     const cloudModeActive = computed(() => isCloudConnected());
     const localModeActive = computed(() => !cloudModeActive.value && (isCloudGuest() || state.localModeLocked));
-    const canUseCloudLogin = computed(() => !localModeActive.value);
-    const canUseLocalManual = computed(() => !cloudModeActive.value);
+    const isCloudLocked = computed(() => state.cloudModeLocked);
+    const isLocalLocked = computed(() => state.localModeLocked);
+    const canUseCloudLogin = computed(() => !isLocalLocked.value);
+    const canUseLocalManual = computed(() => !isCloudLocked.value);
 
     const closeSyncDrawer = () => {
       state.showSyncDrawer = false;
@@ -151,6 +155,15 @@ createApp({
 
     const closeSettingsMenu = () => {
       state.showSettingsMenu = false;
+    };
+
+    const unlockModes = () => {
+      if (confirm('解除锁定后，你可以重新选择另一种模式。\n你的学习进度不会被删除，已保存的数据会保留。')) {
+        state.localModeLocked = false;
+        state.cloudModeLocked = false;
+        localStorage.removeItem(LS_LOCAL_MODE_LOCK);
+        localStorage.removeItem(LS_CLOUD_MODE_LOCK);
+      }
     };
 
     const isWordMasteredHighlight = (w) => w && w._id && state.mastered_ids.includes(w._id);
@@ -471,8 +484,8 @@ createApp({
           state.currentWord = state.wordBank[state.currentIndex];
           state.currentWordIndex = state.currentIndex;
           state.showImporter = false;
-          state.localModeLocked = true;
-          localStorage.setItem(LS_LOCAL_MODE_LOCK, '1');
+          state.cloudModeLocked = true;
+          localStorage.setItem(LS_CLOUD_MODE_LOCK, '1');
           syncMasteredIdsFromMastery();
           alert(`✅ 导入成功！共加载 ${words.length} 个单词`);
           save();
@@ -528,7 +541,7 @@ createApp({
 
     const submitCloudLogin = async () => {
       if (!canUseCloudLogin.value) {
-        alert('当前处于本地模式，请清空本地锁定后再连接云端。');
+        alert('当前处于本地导入模式，请解除本地锁定后再连接云端。');
         return;
       }
       const token = state.authForm.token.trim();
@@ -557,7 +570,8 @@ createApp({
       localStorage.setItem(LS_TOKEN, token);
       localStorage.setItem(LS_GIST, gistId);
       localStorage.removeItem(LS_GUEST);
-      localStorage.removeItem(LS_LOCAL_MODE_LOCK);
+      localStorage.setItem(LS_LOCAL_MODE_LOCK, '1');
+      state.localModeLocked = true;
       sessionStorage.removeItem(SS_WAS_GUEST);
       if (wasGuest && confirm('是否将当前的本地进度同步至云端？')) {
         try {
@@ -707,6 +721,8 @@ createApp({
       gistIdSuffix,
       cloudModeActive,
       localModeActive,
+      isCloudLocked,
+      isLocalLocked,
       canUseCloudLogin,
       canUseLocalManual,
       isWordMasteredHighlight,
@@ -715,6 +731,7 @@ createApp({
       openSyncDrawer,
       closeSyncDrawer,
       closeSettingsMenu,
+      unlockModes,
       fetchManifest,
       loadSelectedDay,
       loadAllFromManifest,
