@@ -19,14 +19,22 @@
       <div class="top-progress-bar" :style="{ width: ((filteredCurrentNo) / (filteredTotal || 1) * 100) + '%' }"></div>
     </div>
 
-    <button type="button" id="sync-status" class="sync-status-dot" :class="{ 'sync-on': isCloudConnected(), 'sync-off': !isCloudConnected() }"
-      title="同步与备份" aria-label="打开同步与备份" @click="openSyncDrawer"></button>
-
     <header class="header header-text-only">
       <div class="header-inner">
-        <i class="ph-fill ph-graduation-cap logo-icon" aria-hidden="true"></i>
-        <h1 class="title">BEC 词汇大师</h1>
-        <span class="header-counter">目前第 {{ filteredCurrentNo }} 个 · 共 {{ filteredTotal }} 个</span>
+        <div class="header-left">
+          <i class="ph-fill ph-graduation-cap logo-icon" aria-hidden="true"></i>
+          <h1 class="title">BEC 词汇大师</h1>
+          <span class="header-counter">第 {{ filteredCurrentNo }} / 共 {{ filteredTotal }} 个</span>
+        </div>
+        <div class="header-right">
+          <button type="button" class="header-icon-btn settings-mini-btn" title="设置" aria-label="打开设置菜单"
+            @click.stop="state.showSettingsMenu = !state.showSettingsMenu">
+            <i class="ph ph-gear" aria-hidden="true"></i>
+          </button>
+          <button type="button" id="sync-status" class="header-icon-btn sync-status-dot"
+            :class="{ 'sync-on': isCloudConnected(), 'sync-off': !isCloudConnected() }" title="同步与备份"
+            aria-label="打开同步与备份" @click="openSyncDrawer"></button>
+        </div>
       </div>
     </header>
 
@@ -49,30 +57,6 @@
             <button type="button" class="learn-icon-btn" title="统计与复习" aria-label="统计与复习" @click="openStatsAndReview">
               <i class="ph ph-chart-line" aria-hidden="true"></i>
             </button>
-          </div>
-          <div class="settings-wrap">
-            <button type="button" class="settings-gear-btn" title="设置" aria-label="打开设置菜单"
-              @click.stop="state.showSettingsMenu = !state.showSettingsMenu">
-              <i class="ph ph-gear" aria-hidden="true"></i>
-            </button>
-            <div v-if="state.showSettingsMenu" class="settings-screen" @click="closeSettingsMenu"></div>
-            <div v-if="state.showSettingsMenu" class="settings-panel" @click.stop>
-              <p class="settings-heading">词库与管理</p>
-              <label class="settings-label">数据日文件</label>
-              <select v-model="state.selectedDayFile" class="settings-select" :disabled="state.dataLoadBusy">
-                <option v-for="f in state.manifestDays" :key="f" :value="f">{{ formatDayLabel(f) }}</option>
-              </select>
-              <button type="button" class="settings-action" :disabled="state.dataLoadBusy"
-                @click="loadSelectedDay(); closeSettingsMenu()">加载所选 Day</button>
-              <button type="button" class="settings-action" :disabled="state.dataLoadBusy"
-                @click="loadAllFromManifest(); closeSettingsMenu()">全部加载</button>
-              <button type="button" class="settings-action" :disabled="state.dataLoadBusy"
-                @click="fetchManifest(); closeSettingsMenu()">刷新 manifest 目录</button>
-              <p class="settings-subheading">备份</p>
-              <button type="button" class="settings-action" @click="exportData(); closeSettingsMenu()">导出 JSON</button>
-              <button type="button" class="settings-action" @click="state.showImporter = true; closeSettingsMenu()">导入 JSON</button>
-              <p v-if="state.dataLoadMessage" class="settings-msg">{{ state.dataLoadMessage }}</p>
-            </div>
           </div>
         </div>
 
@@ -190,6 +174,22 @@
       </main>
     </div>
 
+    <div v-if="state.showSettingsMenu" class="settings-screen" @click="closeSettingsMenu"></div>
+    <div v-if="state.showSettingsMenu" class="settings-panel settings-panel-global" @click.stop>
+      <p class="settings-heading">词库与管理</p>
+      <label class="settings-label">数据日文件</label>
+      <select v-model="state.selectedDayFile" class="settings-select" :disabled="state.dataLoadBusy">
+        <option v-for="f in state.manifestDays" :key="f" :value="f">{{ formatDayLabel(f) }}</option>
+      </select>
+      <button type="button" class="settings-action" :disabled="state.dataLoadBusy"
+        @click="loadSelectedDay(); closeSettingsMenu()">加载所选 Day</button>
+      <button type="button" class="settings-action" :disabled="state.dataLoadBusy"
+        @click="loadAllFromManifest(); closeSettingsMenu()">全部加载</button>
+      <button type="button" class="settings-action" :disabled="state.dataLoadBusy"
+        @click="fetchManifest(); closeSettingsMenu()">刷新 manifest 目录</button>
+      <p v-if="state.dataLoadMessage" class="settings-msg">{{ state.dataLoadMessage }}</p>
+    </div>
+
     <div v-if="state.showSyncDrawer" class="sync-drawer-backdrop" @click="closeSyncDrawer"></div>
     <aside v-if="state.showSyncDrawer" class="sync-drawer" aria-label="同步与备份">
       <div class="sync-drawer-head">
@@ -199,21 +199,35 @@
       <p class="sync-drawer-status" v-if="isCloudConnected()">🟢 云端已连接 · Gist …{{ gistIdSuffix }}</p>
       <p class="sync-drawer-status sync-drawer-status--muted" v-else>🟡 离线模式（数据仅保存在当前浏览器）</p>
       <p class="sync-drawer-desc">连接 GitHub 后，即可在 S24 Ultra 和 Mac 之间同步学习进度。您的数据将通过加密方式存储，安全且私密。</p>
-      <label class="auth-label">授权令牌 (Token)</label>
-      <input v-model="state.authForm.token" type="password" autocomplete="off" class="auth-input" placeholder="ghp_…">
-      <label class="auth-label">云端进度 ID</label>
-      <input v-model="state.authForm.gistId" type="text" class="auth-input" placeholder="32 位十六进制 ID">
-      <div class="sync-drawer-actions">
-        <button type="button" class="btn-modal-primary sync-drawer-btn" @click="submitCloudLogin">确认连接</button>
-        <button type="button" class="btn-modal-dark sync-drawer-btn" @click="enterGuestMode">离线使用（仅存本机）</button>
-        <button v-if="canDismissAuthOverlay" type="button" class="btn-modal-dark sync-drawer-btn" @click="closeSyncDrawer">稍后再说</button>
-      </div>
+      <section class="mode-section mode-cloud">
+        <p class="mode-title">🔐 云端模式</p>
+        <p class="mode-desc">连接 GitHub 即可在多端同步学习进度。</p>
+        <label class="auth-label">授权令牌 (Token)</label>
+        <input v-model="state.authForm.token" type="password" autocomplete="off" class="auth-input" placeholder="ghp_…"
+          :disabled="!canUseCloudLogin">
+        <label class="auth-label">云端进度 ID</label>
+        <input v-model="state.authForm.gistId" type="text" class="auth-input" placeholder="32 位十六进制 ID"
+          :disabled="!canUseCloudLogin">
+        <div class="sync-drawer-actions">
+          <button type="button" class="btn-modal-primary sync-drawer-btn" @click="submitCloudLogin"
+            :disabled="!canUseCloudLogin">确认连接</button>
+        </div>
+      </section>
       <div class="sync-drawer-divider"></div>
-      <p class="settings-heading">本地备份</p>
-      <div class="sync-drawer-actions sync-drawer-actions--row">
-        <button type="button" class="btn-modal-primary sync-drawer-btn" @click="exportData">导出 JSON</button>
-        <button type="button" class="btn-modal-dark sync-drawer-btn" @click="state.showImporter = true; closeSyncDrawer()">导入 JSON</button>
-      </div>
+      <section class="mode-section mode-local">
+        <p class="mode-title">🏠 本地模式</p>
+        <p class="mode-desc">数据仅保存在当前浏览器。通过手动导入与导出，方便在多设备间保存进度到本地浏览器。</p>
+        <a class="mode-link" href="./README.md" target="_blank" rel="noopener noreferrer">查看 README 迁移说明</a>
+        <div class="sync-drawer-actions sync-drawer-actions--row">
+          <button type="button" class="btn-modal-primary sync-drawer-btn" @click="exportData" :disabled="!canUseLocalManual">导出 JSON</button>
+          <button type="button" class="btn-modal-dark sync-drawer-btn"
+            @click="state.showImporter = true; closeSyncDrawer()" :disabled="!canUseLocalManual">导入 JSON</button>
+        </div>
+        <div class="sync-drawer-actions">
+          <button type="button" class="btn-modal-dark sync-drawer-btn" @click="enterGuestMode" :disabled="!canUseLocalManual">离线使用（仅存本机）</button>
+          <button v-if="canDismissAuthOverlay" type="button" class="btn-modal-dark sync-drawer-btn" @click="closeSyncDrawer">稍后再说</button>
+        </div>
+      </section>
     </aside>
 
     <div v-if="state.showImporter" class="modal-overlay">

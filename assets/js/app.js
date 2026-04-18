@@ -3,6 +3,7 @@ const { createApp, reactive, computed, onMounted, nextTick } = Vue;
 const LS_TOKEN = 'github_token';
 const LS_GIST = 'gist_id';
 const LS_GUEST = 'bec_cloud_guest';
+const LS_LOCAL_MODE_LOCK = 'bec_local_mode_lock';
 const SS_WAS_GUEST = 'bec_was_guest';
 const LS_APP = 'bec_v5_final';
 
@@ -121,6 +122,7 @@ createApp({
       dataLoadBusy: false,
       showSyncDrawer: false,
       showSettingsMenu: false,
+      localModeLocked: localStorage.getItem(LS_LOCAL_MODE_LOCK) === '1',
     });
 
     _stateRef = state;
@@ -131,6 +133,10 @@ createApp({
     });
 
     const canDismissAuthOverlay = computed(() => hasCloudCreds() || isCloudGuest());
+    const cloudModeActive = computed(() => isCloudConnected());
+    const localModeActive = computed(() => !cloudModeActive.value && (isCloudGuest() || state.localModeLocked));
+    const canUseCloudLogin = computed(() => !localModeActive.value);
+    const canUseLocalManual = computed(() => !cloudModeActive.value);
 
     const closeSyncDrawer = () => {
       state.showSyncDrawer = false;
@@ -138,6 +144,7 @@ createApp({
 
     const openSyncDrawer = () => {
       state.showSyncDrawer = true;
+      state.showSettingsMenu = false;
       state.authForm.token = readToken();
       state.authForm.gistId = readGistId();
     };
@@ -445,6 +452,10 @@ createApp({
 
     const processImportData = (content) => {
       try {
+        if (!canUseLocalManual.value) {
+          alert('当前已连接云端，同步模式下不可手动导入。');
+          return;
+        }
         const data = JSON.parse(content.trim());
         const words = Array.isArray(data) ? data : data.bank || [];
         if (words.length) {
@@ -460,6 +471,8 @@ createApp({
           state.currentWord = state.wordBank[state.currentIndex];
           state.currentWordIndex = state.currentIndex;
           state.showImporter = false;
+          state.localModeLocked = true;
+          localStorage.setItem(LS_LOCAL_MODE_LOCK, '1');
           syncMasteredIdsFromMastery();
           alert(`✅ 导入成功！共加载 ${words.length} 个单词`);
           save();
@@ -481,6 +494,10 @@ createApp({
     };
 
     const exportData = () => {
+      if (!canUseLocalManual.value) {
+        alert('当前已连接云端，同步模式下不可手动导出。');
+        return;
+      }
       syncMasteredIdsFromMastery();
       const data = JSON.stringify(
         {
@@ -503,11 +520,17 @@ createApp({
 
     const enterGuestMode = () => {
       localStorage.setItem(LS_GUEST, '1');
+      localStorage.setItem(LS_LOCAL_MODE_LOCK, '1');
       sessionStorage.setItem(SS_WAS_GUEST, '1');
+      state.localModeLocked = true;
       closeSyncDrawer();
     };
 
     const submitCloudLogin = async () => {
+      if (!canUseCloudLogin.value) {
+        alert('当前处于本地模式，请清空本地锁定后再连接云端。');
+        return;
+      }
       const token = state.authForm.token.trim();
       const gistId = state.authForm.gistId.trim();
       if (!token || !gistId) {
@@ -534,6 +557,7 @@ createApp({
       localStorage.setItem(LS_TOKEN, token);
       localStorage.setItem(LS_GIST, gistId);
       localStorage.removeItem(LS_GUEST);
+      localStorage.removeItem(LS_LOCAL_MODE_LOCK);
       sessionStorage.removeItem(SS_WAS_GUEST);
       if (wasGuest && confirm('是否将当前的本地进度同步至云端？')) {
         try {
@@ -681,6 +705,10 @@ createApp({
       isCloudConnected,
       isCloudGuest,
       gistIdSuffix,
+      cloudModeActive,
+      localModeActive,
+      canUseCloudLogin,
+      canUseLocalManual,
       isWordMasteredHighlight,
       enterGuestMode,
       submitCloudLogin,
