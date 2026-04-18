@@ -51,10 +51,9 @@
   border: 1px solid #e2e8f0; margin-bottom: 2rem;
 }
 
-/* 单词卡片：纵向滚动交给浏览器，横向滑动翻页；过渡时避免裁切位移 */
+/* 单词卡片：纵向滚动交给浏览器，横向滑动翻页（圆角与裁切沿用 .card） */
 #word-card.card {
   touch-action: pan-y;
-  overflow: visible;
 }
 
 /* Vue <transition name="slide-left | slide-right"> */
