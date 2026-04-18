@@ -1,4 +1,4 @@
-const { createApp, reactive, computed, onMounted } = Vue;
+const { createApp, reactive, computed, onMounted, nextTick } = Vue;
 
 createApp({
   setup() {
@@ -119,13 +119,31 @@ createApp({
     const prev = () => state.reviewFilter ? jump(findNextFilteredIndex(-1)) : jump(state.currentIndex - 1);
     const mark = (s) => { state.mastery[state.currentWord.word] = s; next(); save(); };
 
+    // 处理滑动逻辑
+    const handleTouch = (start, end) => {
+      if (state.showImporter || state.showStats) return;
+      const threshold = 50; // 划动超过50像素才触发，防止误触
+      const diff = start - end;
+
+      if (Math.abs(diff) > threshold) {
+        if (diff > 0) {
+          // 从右往左划 -> 下一个
+          next();
+        } else {
+          // 从左往右划 -> 上一个
+          prev();
+        }
+      }
+    };
+
+    let touchStartX = 0;
+
     // 复习
     const openStatsAndReview = () => state.showStats = true;
     const reviewWeak = () => { state.reviewFilter = 'both'; jump(findNextFilteredIndex()); state.showStats = false; };
     const reviewOnlyUnknown = () => { state.reviewFilter = 'unknown'; jump(findNextFilteredIndex()); state.showStats = false; };
     const reviewOnlyVague = () => { state.reviewFilter = 'vague'; jump(findNextFilteredIndex()); state.showStats = false; };
 
-    // 导入
     // 导入
     const processImportData = (content) => {
       try {
@@ -207,6 +225,20 @@ createApp({
         if (e.key === '1') { mark('unknown'); return; }
         if (e.key === '2') { mark('vague'); return; }
         if (e.key === '3') { mark('known'); return; }
+      });
+
+      nextTick(() => {
+        const container = document.getElementById('word-card');
+        if (!container) return;
+
+        container.addEventListener('touchstart', (e) => {
+          touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+
+        container.addEventListener('touchend', (e) => {
+          const touchEndX = e.changedTouches[0].screenX;
+          handleTouch(touchStartX, touchEndX);
+        }, { passive: true });
       });
     });
 

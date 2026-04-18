@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BEC词汇大师</title>
   <meta name="description" content="BEC词汇大师，专为备考BEC打造的高效单词学习工具，支持自定义词库、多种记忆模式">
-  
+
   <!-- 核心图标（只保留这两个就够了） -->
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
   <link rel="apple-touch-icon" href="apple-icon-180x180.png">
@@ -13,6 +14,7 @@
   <!-- 样式表 -->
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
+
 <body>
   <div id="app" v-cloak class="flex flex-col min-h-screen">
     <!-- 进度条 -->
@@ -33,13 +35,15 @@
         <div class="flex flex-wrap gap-1.5 items-center">
           <button @click="exportData" class="btn-sm">导出</button>
           <button @click="state.showImporter = true" class="btn-sm">导入</button>
-          <button @click="toggleRandomMode" :class="['btn-sm', state.settings.enableRandomMode ? 'btn-purple' : 'btn-dark']">乱序 (R)</button>
-          <button @click="state.settings.enableReviewMode = !state.settings.enableReviewMode" :class="['btn-sm', state.settings.enableReviewMode ? 'btn-blue' : 'btn-dark']">遮挡 (Space)</button>
+          <button @click="toggleRandomMode"
+            :class="['btn-sm', state.settings.enableRandomMode ? 'btn-purple' : 'btn-dark']">乱序 (R)</button>
+          <button @click="state.settings.enableReviewMode = !state.settings.enableReviewMode"
+            :class="['btn-sm', state.settings.enableReviewMode ? 'btn-blue' : 'btn-dark']">遮挡 (Space)</button>
           <button @click="toggleRecallMode" :class="['btn-sm', 
             state.settings.recallMode === 'en2cn' ? 'btn-green' :
             state.settings.recallMode === 'cn2en' ? 'btn-orange' : 'btn-dark']">
-            {{ state.settings.recallMode === 'en2cn' ? '英→中' : 
-               state.settings.recallMode === 'cn2en' ? '中→英' : '显示全部' }}
+            {{ state.settings.recallMode === 'en2cn' ? '英→中' :
+            state.settings.recallMode === 'cn2en' ? '中→英' : '显示全部' }}
           </button>
           <button @click="openStatsAndReview" class="btn-sm btn-rose">统计/复习</button>
           <span class="block sm:hidden counter-badge">
@@ -53,7 +57,7 @@
     <div class="flex-1 flex overflow-hidden">
       <main class="flex-1 overflow-y-auto p-4 md:p-10 flex justify-center custom-scroll">
         <div class="w-full max-w-2xl" v-if="state.currentWord">
-          <div class="card">
+          <div id="word-card" class="card">
             <div class="card-header">
               <div v-if="state.settings.recallMode === 'cn2en'" class="mb-4">
                 <div class="relative inline-block px-4 py-1">
@@ -74,13 +78,14 @@
                     </button>
                   </div>
                 </div>
-                <p class="phonetic">{{ state.currentWord.phonetic }} 
+                <p class="phonetic">{{ state.currentWord.phonetic }}
                   <span v-if="state.currentWord.pos" class="pos">[{{ state.currentWord.pos }}]</span>
                 </p>
               </div>
 
               <div class="input-container" v-if="state.settings.recallMode !== 'all'">
-                <input v-model="state.userInput" :class="['input-primary', isTypingCorrect ? 'is-correct' : '']" placeholder="输入拼写/释义并回车确认...">
+                <input v-model="state.userInput" :class="['input-primary', isTypingCorrect ? 'is-correct' : '']"
+                  placeholder="输入拼写/释义并回车确认...">
               </div>
 
               <div class="relative inline-block px-4 py-2" v-if="state.settings.recallMode !== 'cn2en'">
@@ -135,10 +140,13 @@
               <div class="flex justify-between items-center text-gray-400 text-xs px-2">
                 <button @click="prev" class="hover:text-blue-500 transition">← 上一个</button>
                 <span>
-                  {{ state.settings.enableRandomMode ? '乱序模式' : '顺序模式' }} | 
-                  {{ state.settings.recallMode === 'en2cn' ? '英→中' : state.settings.recallMode === 'cn2en' ? '中→英' : '全部' }}
-                  <span v-if="state.mastery[state.currentWord.word] === 'unknown'" class="ml-2 text-red-500 font-bold">【不认识】</span>
-                  <span v-else-if="state.mastery[state.currentWord.word] === 'vague'" class="ml-2 text-amber-500 font-bold">【模糊】</span>
+                  {{ state.settings.enableRandomMode ? '乱序模式' : '顺序模式' }} |
+                  {{ state.settings.recallMode === 'en2cn' ? '英→中' : state.settings.recallMode === 'cn2en' ? '中→英' :
+                  '全部' }}
+                  <span v-if="state.mastery[state.currentWord.word] === 'unknown'"
+                    class="ml-2 text-red-500 font-bold">【不认识】</span>
+                  <span v-else-if="state.mastery[state.currentWord.word] === 'vague'"
+                    class="ml-2 text-amber-500 font-bold">【模糊】</span>
                 </span>
                 <button @click="next" class="hover:text-blue-500 transition">下一个 →</button>
               </div>
@@ -158,7 +166,8 @@
         </div>
         <div class="mb-5">
           <p class="text-xs font-bold text-gray-500 mb-2">方案二：粘贴文本</p>
-          <textarea v-model="state.importText" class="w-full h-32 p-4 border rounded-lg text-xs font-mono" placeholder="粘贴数组..."></textarea>
+          <textarea v-model="state.importText" class="w-full h-32 p-4 border rounded-lg text-xs font-mono"
+            placeholder="粘贴数组..."></textarea>
         </div>
         <div class="flex gap-3">
           <button @click="handleImport" class="btn-modal-primary">确定导入</button>
@@ -172,7 +181,9 @@
       <div class="modal-content">
         <h3 class="modal-title flex items-center gap-2"><i class="ph ph-chart-line"></i> 学习统计</h3>
         <div class="space-y-5">
-          <div v-for="(val, key) in { known: ['认识了','text-green-600'], vague: ['模糊','text-amber-600'], unknown: ['不认识','text-red-600'] }" :key="key">
+          <div
+            v-for="(val, key) in { known: ['认识了','text-green-600'], vague: ['模糊','text-amber-600'], unknown: ['不认识','text-red-600'] }"
+            :key="key">
             <div class="flex justify-between text-xs mb-1">
               <span class="text-gray-400">{{ val[0] }}</span>
               <span :class="['font-bold', val[1]]">{{ stats[key] }}</span>
@@ -182,9 +193,11 @@
                 :style="{ width: (stats[key] / (state.wordBank.length || 1) * 100) + '%' }"></div>
             </div>
           </div>
-          <button @click="reviewWeak" :disabled="stats.unknown + stats.vague === 0" class="btn-modal-rose">🔁 复习未掌握</button>
+          <button @click="reviewWeak" :disabled="stats.unknown + stats.vague === 0" class="btn-modal-rose">🔁
+            复习未掌握</button>
           <div class="grid grid-cols-2 gap-3">
-            <button @click="reviewOnlyUnknown" :disabled="stats.unknown === 0" class="btn-modal-rose-dark">🔴 只复习不认识</button>
+            <button @click="reviewOnlyUnknown" :disabled="stats.unknown === 0" class="btn-modal-rose-dark">🔴
+              只复习不认识</button>
             <button @click="reviewOnlyVague" :disabled="stats.vague === 0" class="btn-modal-amber">🟡 只复习模糊</button>
           </div>
         </div>
@@ -201,4 +214,5 @@
   <script src="assets/js/utils.js"></script>
   <script src="assets/js/app.js"></script>
 </body>
+
 </html>
