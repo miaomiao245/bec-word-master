@@ -126,6 +126,7 @@ createApp({
       localModeLocked: false,
       cloudModeLocked: false,
       showAllWordInfo: false,
+      syncInProgress: false,
     });
 
     _stateRef = state;
@@ -256,10 +257,19 @@ createApp({
       state.mastered_ids = [...set];
     };
 
-    const pushGistProgress = () => {
+    const pushGistProgress = async () => {
       if (!isCloudConnected()) return;
       syncMasteredIdsFromMastery();
-      patchGistProgressRemote(state.mastered_ids).catch((e) => console.error('Gist 同步失败', e));
+      try {
+        // 先读取云端已有的进度
+        const remote = await fetchGistProgressRemote();
+        // 合并本地和云端的 ID（取并集，确保只增不减）
+        const merged = new Set([...remote.mastered_ids, ...state.mastered_ids]);
+        // 统一时间戳并上传合并后的数据
+        await patchGistProgressRemote([...merged]);
+      } catch (e) {
+        console.error('Gist 同步失败', e);
+      }
     };
 
     const toggleRandomMode = () => {
@@ -676,6 +686,60 @@ createApp({
       }
     };
 
+    const logoutCloud = () => {
+      if (!confirm('确定要退出云端登录吗？退出后，你仍然可以重新连接。')) return;
+      // 清除 localStorage 中的凭证
+      localStorage.removeItem(LS_TOKEN);
+      localStorage.removeItem(LS_GIST);
+      localStorage.removeItem(LS_CLOUD_MODE_LOCK);
+      
+      // 重置状态
+      state.authForm.token = '';
+      state.authForm.gistId = '';
+      state.cloudModeLocked = false;
+      state.localModeLocked = false;
+      
+      // 清除 UI 状态
+      state.showSyncDrawer = false;
+      
+      // 刷新页面
+      location.reload();
+    };
+
+    const manualSync = async () => {
+      if (!isCloudConnected()) {
+        alert('请先连接云端');
+        return;
+      }
+      
+      state.syncInProgress = true;
+      try {
+        // 确保本地状态是最新的
+        syncMasteredIdsFromMastery();
+        
+        // 先读取云端已有的进度
+        const remote = await fetchGistProgressRemote();
+        
+        // 合并本地和云端的 ID（取并集，确保只增不减）
+        const merged = new Set([...remote.mastered_ids, ...state.mastered_ids]);
+        state.mastered_ids = [...merged];
+        
+        // 上传合并后的数据
+        await patchGistProgressRemote(state.mastered_ids);
+        
+        // 保存到本地
+        save();
+        
+        // 显示成功提示
+        alert(`✅ 同步成功！当前已掌握 ${state.mastered_ids.length} 个单词`);
+      } catch (e) {
+        console.error('手动同步失败', e);
+        alert('❌ 同步失败：' + e.message);
+      } finally {
+        state.syncInProgress = false;
+      }
+    };
+
     onMounted(async () => {
       initializeModeLocksOnLoad();
       hydrateFromLocalStorage();
@@ -800,6 +864,8 @@ createApp({
       handlePanelTouchEnd,
       unlockModes,
       toggleShowAllWordInfo,
+      logoutCloud,
+      manualSync,
       fetchManifest,
       loadSelectedDay,
       loadAllFromManifest,

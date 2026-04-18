@@ -426,6 +426,12 @@
 .btn-modal-dark {
   padding: 0.5rem 1.5rem; background: #e2e8f0; color: #334155; border: none; border-radius: 0.5rem; cursor: pointer;
 }
+.btn-logout {
+  background: #fecaca; color: #991b1b;
+}
+.btn-logout:hover {
+  background: #fca5a5;
+}
 .btn-modal-rose {
   width: 100%; padding: 0.75rem; background: #e11d48; color: white; border: none; border-radius: 0.75rem; cursor: pointer;
 }

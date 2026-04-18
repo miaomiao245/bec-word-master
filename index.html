@@ -225,6 +225,20 @@
           <button v-if="isCloudLocked" type="button" class="btn-modal-dark sync-drawer-btn" @click="unlockModes"
             title="解除云端锁定">🔓 解除锁定</button>
         </div>
+        <!-- 云端已连接时显示的操作 -->
+        <div v-if="cloudModeActive" class="sync-drawer-actions">
+          <button type="button" id="btn-sync-now" class="btn-modal-dark sync-drawer-btn" @click="manualSync"
+            :disabled="state.syncInProgress" title="立即同步进度">
+            <span v-if="!state.syncInProgress">🔄 立即同步进度</span>
+            <span v-else>同步中...</span>
+          </button>
+        </div>
+        <div v-if="cloudModeActive" class="sync-drawer-actions">
+          <button type="button" id="btn-logout" class="btn-modal-dark sync-drawer-btn btn-logout" @click="logoutCloud"
+            title="退出云端登录">
+            <i class="ph ph-sign-out" aria-hidden="true"></i> 退出登录
+          </button>
+        </div>
       </section>
       <div class="sync-drawer-divider"></div>
       <section class="mode-section mode-local">
