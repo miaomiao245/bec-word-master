@@ -1,3 +1,35 @@
+/** 相对路径 fetch 防缓存（Cloudflare Pages 等） */
+const cacheBustUrl = (url) => {
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}t=${Date.now()}`;
+};
+
+/** 由 day 文件名与下标生成稳定 id，如 day01.json + 0 -> d01_01 */
+const wordIdFromDayFile = (dayFile, index0) => {
+  const base = dayFile.replace(/\.json$/i, '');
+  const m = base.match(/(\d+)/);
+  const dayNum = m ? m[1] : '1';
+  const dPre = 'd' + String(parseInt(dayNum, 10)).padStart(2, '0');
+  return `${dPre}_${String(index0 + 1).padStart(2, '0')}`;
+};
+
+/** 为导入/无 id 的词库补全 _id */
+const assignImportWordIds = (words) => {
+  return words.map((w, i) => ({
+    ...w,
+    _id: w.id || w._id || `imp_${String(i + 1).padStart(4, '0')}`,
+  }));
+};
+
+/** 解析单日 JSON（数组或 { words: [] }）并写入 _id */
+const normalizeWordsFromDay = (rawJson, dayFile) => {
+  const list = Array.isArray(rawJson) ? rawJson : (rawJson.words || []);
+  return list.map((w, i) => ({
+    ...w,
+    _id: w.id || w._id || wordIdFromDayFile(dayFile, i),
+  }));
+};
+
 // 随机打乱数组
 const shuffleArray = (array) => {
   const newArray = [...array];

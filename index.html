@@ -24,6 +24,11 @@
 
     <!-- 顶部导航 -->
     <header class="header">
+      <div class="cloud-status-bar" v-if="!state.showAuthOverlay">
+        <span v-if="isCloudConnected()" class="cloud-status cloud-on">🟢 云端已连接 · Gist …{{ gistIdSuffix }}</span>
+        <span v-else class="cloud-status cloud-off">🟡 离线模式（数据仅保存在当前浏览器）</span>
+        <button v-if="!isCloudConnected()" type="button" class="cloud-link-btn" @click="openCloudAuth">连接云端</button>
+      </div>
       <div class="container mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <div class="flex items-center gap-2">
           <i class="ph-fill ph-graduation-cap logo-icon"></i>
@@ -51,6 +56,16 @@
           </span>
         </div>
       </div>
+      <div class="data-source-bar" v-if="!state.showAuthOverlay">
+        <label class="data-source-label">词库</label>
+        <select v-model="state.selectedDayFile" class="data-source-select" :disabled="state.dataLoadBusy">
+          <option v-for="f in state.manifestDays" :key="f" :value="f">{{ f }}</option>
+        </select>
+        <button type="button" class="btn-sm btn-blue" :disabled="state.dataLoadBusy" @click="loadSelectedDay">加载所选 Day</button>
+        <button type="button" class="btn-sm btn-purple" :disabled="state.dataLoadBusy" @click="loadAllFromManifest">全量加载（并发）</button>
+        <button type="button" class="btn-sm btn-dark" :disabled="state.dataLoadBusy" @click="fetchManifest">刷新目录</button>
+        <span v-if="state.dataLoadMessage" class="data-source-msg">{{ state.dataLoadMessage }}</span>
+      </div>
     </header>
 
     <!-- 主内容 -->
@@ -58,7 +73,8 @@
       <main class="flex-1 overflow-y-auto p-4 md:p-10 flex justify-center custom-scroll">
         <div class="w-full max-w-2xl" v-if="state.currentWord">
           <transition :name="state.transitionName" mode="out-in">
-            <div id="word-card" :key="state.currentWordIndex" class="card">
+            <div id="word-card" :key="state.currentWordIndex"
+              :class="['card', { 'card-mastered': isWordMasteredHighlight(state.currentWord) }]">
             <div class="card-header">
               <div v-if="state.settings.recallMode === 'cn2en'" class="mb-4">
                 <div class="relative inline-block px-4 py-1">
@@ -160,6 +176,23 @@
           </transition>
         </div>
       </main>
+    </div>
+
+    <!-- 云端 / 游客 认证遮罩 -->
+    <div v-if="state.showAuthOverlay" class="auth-overlay">
+      <div class="auth-panel">
+        <h2 class="auth-title">登录 GitHub Gist（可选）</h2>
+        <p class="auth-desc">填写 Personal Access Token 与 Gist ID 后，进度可同步到 Gist 中的 <code>progress.json</code>。Token 仅保存在本机 localStorage，不会写入源码。</p>
+        <label class="auth-label">GitHub Token</label>
+        <input v-model="state.authForm.token" type="password" autocomplete="off" class="auth-input" placeholder="ghp_…">
+        <label class="auth-label">Gist ID</label>
+        <input v-model="state.authForm.gistId" type="text" class="auth-input" placeholder="32 位十六进制 ID">
+        <div class="auth-actions">
+          <button type="button" class="btn-modal-primary auth-btn" @click="submitCloudLogin">登录并刷新</button>
+          <button type="button" class="btn-modal-dark auth-btn" @click="enterGuestMode">游客模式（仅用本机 + 导入导出）</button>
+          <button v-if="canDismissAuthOverlay" type="button" class="btn-modal-dark auth-btn" @click="closeAuthOverlay">稍后再说</button>
+        </div>
+      </div>
     </div>
 
     <!-- 导入弹窗 -->

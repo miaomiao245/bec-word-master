@@ -24,6 +24,55 @@
   background: #1e293b; color: white; padding: 0.75rem; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
   margin-top: 0.5rem;
 }
+
+.cloud-status-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem;
+  padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+.cloud-status { font-size: 0.7rem; font-weight: 600; }
+.cloud-on { color: #86efac; }
+.cloud-off { color: #fde047; }
+.cloud-link-btn {
+  font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 0.35rem;
+  border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.08);
+  color: #e2e8f0; cursor: pointer;
+}
+.cloud-link-btn:hover { background: rgba(255,255,255,0.15); }
+
+.data-source-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;
+  margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.1);
+}
+.data-source-label { font-size: 0.65rem; color: #94a3b8; font-weight: bold; }
+.data-source-select {
+  font-size: 0.7rem; padding: 0.25rem 0.5rem; border-radius: 0.35rem;
+  border: 1px solid #475569; background: #0f172a; color: #e2e8f0; max-width: 10rem;
+}
+.data-source-msg { font-size: 0.65rem; color: #93c5fd; }
+
+.auth-overlay {
+  position: fixed; inset: 0; z-index: 220;
+  background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+}
+.auth-panel {
+  width: 100%; max-width: 420px; background: #fff; border-radius: 1rem;
+  padding: 1.5rem; box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+}
+.auth-title { font-size: 1.1rem; font-weight: bold; color: #1e3a8a; margin-bottom: 0.5rem; }
+.auth-desc { font-size: 0.75rem; color: #64748b; line-height: 1.5; margin-bottom: 1rem; }
+.auth-label { display: block; font-size: 0.7rem; font-weight: bold; color: #475569; margin-bottom: 0.25rem; }
+.auth-input {
+  width: 100%; margin-bottom: 0.75rem; padding: 0.5rem 0.65rem; border-radius: 0.5rem;
+  border: 1px solid #cbd5e1; font-size: 0.8rem; box-sizing: border-box;
+}
+.auth-actions { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; }
+.auth-btn { width: 100%; }
+
+.card-mastered {
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.55), 0 10px 25px rgba(0,0,0,0.1);
+  border-color: #22c55e;
+}
 .logo-icon {
   color: #93c5fd; font-size: 1.25rem;
 }

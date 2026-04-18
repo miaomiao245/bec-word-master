@@ -1,0 +1,15 @@
+[
+  {
+    "word": "Start",
+    "phonetic": "/stɑːrt/",
+    "pos": "v.",
+    "meaning": "开始",
+    "mod1_desc": "BEC 场景中常用于项目启动。",
+    "mod2_desc": "底层逻辑：阶段性切换。",
+    "mod3_word": "Commence",
+    "mod3_meaning": "开始；着手",
+    "mod4_en": "We will start the project.",
+    "mod4_zh": "我们将启动项目。",
+    "mod4_core": "意图：确认时间。"
+  }
+]
