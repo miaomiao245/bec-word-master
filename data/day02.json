@@ -1,0 +1,93 @@
+[
+    {
+        "word": "deposit",
+        "pos": "n./v.",
+        "phonetic": "/dɪˈpɒzɪt/",
+        "meaning": "定金；存款；寄存",
+        "mod1_desc": "在商务合同中，容易与 'balance' (余款) 混淆。记住：它是为了锁定交易而先付的‘诚意金’。",
+        "mod2_desc": "先放一部分钱在这儿作为担保。",
+        "mod3_word": "down payment",
+        "mod3_meaning": "首付款/定金",
+        "mod4_en": "We require a 30% non-refundable deposit before we cater your event.",
+        "mod4_zh": "在为您提供餐饮服务前，我们需要收取30%且不可退还的定金。",
+        "mod4_core": "管理财务风险/风险规避。"
+    },
+    {
+        "word": "administrative",
+        "pos": "adj.",
+        "phonetic": "/ədˈmɪnɪstrətɪv/",
+        "meaning": "行政的；管理的",
+        "mod1_desc": "常考 administrative staff（行政人员）。易错点：不要单纯理解为‘打杂’，它涵盖了所有的后端支持和流程管理。",
+        "mod2_desc": "维持机构运转的‘后台系统’。",
+        "mod3_word": "managerial",
+        "mod3_meaning": "管理上的",
+        "mod4_en": "The administrative burden has increased significantly since the merger.",
+        "mod4_zh": "自合并以来，行政负担显著增加。",
+        "mod4_core": "反馈效率问题/索要资源。"
+    },
+    {
+        "word": "cater",
+        "pos": "v.",
+        "phonetic": "/ˈkeɪtə(r)/",
+        "meaning": "提供饮食；迎合（需求）",
+        "mod1_desc": "BEC 听力高频词。除了‘餐饮’，更常考的是 cater to customers' needs（迎合客户需求）。",
+        "mod2_desc": "根据别人的胃口（或需求）来做菜（或方案）。",
+        "mod3_word": "accommodate",
+        "mod3_meaning": "通融；迎合（需求）",
+        "mod4_en": "Our new service is designed to cater to the needs of small startups.",
+        "mod4_zh": "我们的新服务旨在满足初创企业的需求。",
+        "mod4_core": "产品定位描述/市场分析。"
+    },
+    {
+        "word": "clause",
+        "pos": "n.",
+        "phonetic": "/klɔːz/",
+        "meaning": "条款；从句",
+        "mod1_desc": "在商务法律语境下，它不是语法里的‘从句’，而是合同里的一条一条的‘死命令’。",
+        "mod2_desc": "合同里的一颗螺丝钉，固定一个具体的责任。",
+        "mod3_word": "provision / article",
+        "mod3_meaning": "规定；条款",
+        "mod4_en": "Please pay close attention to the termination clause in the contract.",
+        "mod4_zh": "请密切注意合同中的终止条款。",
+        "mod4_core": "管理预期/规避法律风险。"
+    },
+    {
+        "word": "dispute",
+        "pos": "n./v.",
+        "phonetic": "/dɪˈspjuːt/",
+        "meaning": "争议；纠纷",
+        "mod1_desc": "易错点：它比 simple disagreement 更严重，通常涉及法律或正式投诉（dispute resolution）。",
+        "mod2_desc": "利益不均导致的‘互不服气’。",
+        "mod3_word": "controversy / conflict",
+        "mod3_meaning": "公开争论；冲突",
+        "mod4_en": "We hope to resolve this labor dispute through friendly negotiation.",
+        "mod4_zh": "我们希望通过友好协商解决这起劳动争议。",
+        "mod4_core": "危机处理/专业示强。"
+    },
+    {
+        "word": "refer to",
+        "pos": "v. phr.",
+        "phonetic": "/rɪˈfɜːr tu/",
+        "meaning": "查阅；提到；涉及",
+        "mod1_desc": "商务写作高频。'Refer to the attachment'（查阅附件）。易错点：它不是单纯的‘看’，而是‘以此为依据’。",
+        "mod2_desc": "把球踢给（指向）另一个信息源。",
+        "mod3_word": "consult",
+        "mod3_meaning": "查阅（资料/专家）",
+        "mod4_en": "Please refer to the employee handbook for policies regarding overtime.",
+        "mod4_zh": "关于加班政策，请参阅员工手册。",
+        "mod4_core": "标准化流程指引/专业化沟通。"
+    },
+    {
+        "word": "unilaterally",
+        "pos": "adv.",
+        "phonetic": "/ˌjuːnɪˈlætrəli/",
+        "meaning": "单方面地",
+        "mod1_desc": "易错点：不要记成“联合地”。Uni是1，指不顾及对方、独自做出的决定。",
+        "mod2_desc": "只有一边在用力，缺乏沟通的强制性动作。",
+        "mod3_word": "independently",
+        "mod3_meaning": "独立地；不受约束地",
+        "mod4_en": "They unilaterally changed the terms of the contract without our consent.",
+        "mod4_zh": "他们未经我们同意，便单方面修改了合同条款。",
+        "mod4_core": "专业示强：指出对方行为的非正当性，为谈判争取主动。"
+    }
+]
