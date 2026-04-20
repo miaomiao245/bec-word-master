@@ -11,6 +11,20 @@ const LS_APP = 'bec_v5_final';
 const readToken = () => localStorage.getItem(LS_TOKEN) || '';
 const readGistId = () => localStorage.getItem(LS_GIST) || '';
 
+const masteryKeyOfWord = (w) => {
+  if (!w) return '';
+  return w._id || w.word || '';
+};
+
+const readWordStatus = (mastery, w) => {
+  if (!mastery || !w) return '';
+  const idKey = w._id || '';
+  if (idKey && mastery[idKey]) return mastery[idKey];
+  const wordKey = w.word || '';
+  if (wordKey && mastery[wordKey]) return mastery[wordKey];
+  return '';
+};
+
 const hasCloudCreds = () => !!(readToken() && readGistId());
 const isCloudGuest = () => localStorage.getItem(LS_GUEST) === '1';
 
@@ -111,8 +125,9 @@ const mergeLocalProgressToGist = async () => {
     const bank = _stateRef.originalWordBank || [];
     const mastery = _stateRef.mastery || {};
     bank.forEach((w) => {
-      if (w._id && mastery[w.word]) {
-        localStatus[w._id] = mastery[w.word];
+      if (w._id) {
+        const s = readWordStatus(mastery, w);
+        if (s) localStatus[w._id] = s;
       }
     });
   }
@@ -133,7 +148,7 @@ const readLocalMasteredIdsFromState = () => {
   const bank = _stateRef.originalWordBank || [];
   const mastery = _stateRef.mastery || {};
   bank.forEach((w) => {
-    if (w._id && mastery[w.word] === 'known') ids.add(w._id);
+    if (w._id && readWordStatus(mastery, w) === 'known') ids.add(w._id);
   });
   return [...ids];
 };
@@ -239,29 +254,37 @@ createApp({
       state.showAllWordInfo = !state.showAllWordInfo;
     };
 
+    const getWordStatus = (w) => readWordStatus(state.mastery, w);
+
     const isWordMasteredHighlight = (w) => w && w._id && state.mastered_ids.includes(w._id);
 
     const filteredWordBank = computed(() => {
       if (!state.reviewFilter) return state.wordBank;
-      if (state.reviewFilter === 'unknown') return state.wordBank.filter((w) => state.mastery[w.word] === 'unknown');
-      if (state.reviewFilter === 'vague') return state.wordBank.filter((w) => state.mastery[w.word] === 'vague');
-      if (state.reviewFilter === 'both') return state.wordBank.filter((w) => state.mastery[w.word] === 'unknown' || state.mastery[w.word] === 'vague');
+      if (state.reviewFilter === 'unknown') return state.wordBank.filter((w) => getWordStatus(w) === 'unknown');
+      if (state.reviewFilter === 'vague') return state.wordBank.filter((w) => getWordStatus(w) === 'vague');
+      if (state.reviewFilter === 'both') return state.wordBank.filter((w) => getWordStatus(w) === 'unknown' || getWordStatus(w) === 'vague');
       return state.wordBank;
     });
 
     const filteredTotal = computed(() => filteredWordBank.value.length);
     const filteredCurrentIndex = computed(() => {
-      const idx = filteredWordBank.value.findIndex((w) => w.word === state.currentWord.word);
+      const currentKey = masteryKeyOfWord(state.currentWord);
+      const idx = filteredWordBank.value.findIndex((w) => masteryKeyOfWord(w) === currentKey);
       return idx === -1 ? 0 : idx;
     });
     const filteredCurrentNo = computed(() => filteredCurrentIndex.value + 1);
 
-    const stats = computed(() => {
+    const getCurrentBankStats = () => {
       const res = { known: 0, vague: 0, unknown: 0 };
-      Object.values(state.mastery).forEach((v) => {
-        if (res[v] !== undefined) res[v]++;
+      state.wordBank.forEach((w) => {
+        const s = getWordStatus(w);
+        if (res[s] !== undefined) res[s]++;
       });
       return res;
+    };
+
+    const stats = computed(() => {
+      return getCurrentBankStats();
     });
 
     const isTypingCorrect = computed(() => {
@@ -294,9 +317,9 @@ createApp({
     };
 
     const syncMasteredIdsFromMastery = () => {
-      const set = new Set(state.mastered_ids);
+      const set = new Set();
       state.originalWordBank.forEach((w) => {
-        if (w._id && state.mastery[w.word] === 'known') set.add(w._id);
+        if (w._id && getWordStatus(w) === 'known') set.add(w._id);
       });
       state.mastered_ids = [...set];
     };
@@ -305,8 +328,9 @@ createApp({
     const generateWordStatus = () => {
       const status = {};
       state.originalWordBank.forEach((w) => {
-        if (w._id && state.mastery[w.word]) {
-          status[w._id] = state.mastery[w.word];
+        if (w._id) {
+          const s = getWordStatus(w);
+          if (s) status[w._id] = s;
         }
       });
       return status;
@@ -365,7 +389,8 @@ createApp({
       for (let i = 0; i < total; i++) {
         cur = (cur + step + total) % total;
         const target = list[cur];
-        const globalIdx = state.wordBank.findIndex((w) => w.word === target.word);
+        const targetKey = masteryKeyOfWord(target);
+        const globalIdx = state.wordBank.findIndex((w) => masteryKeyOfWord(w) === targetKey);
         if (globalIdx !== -1) return globalIdx;
       }
       return state.currentIndex;
@@ -395,7 +420,8 @@ createApp({
     };
 
     const applyMasteryLevel = (s) => {
-      state.mastery[state.currentWord.word] = s;
+      const key = masteryKeyOfWord(state.currentWord);
+      if (key) state.mastery[key] = s;
       const wid = state.currentWord._id;
       if (wid) {
         if (s === 'known') {
@@ -578,24 +604,32 @@ createApp({
         const data = JSON.parse(content.trim());
         const words = Array.isArray(data) ? data : data.bank || [];
         if (words.length) {
+          // 手动导入视为“切换词库”：仅保留新词库中仍存在词的进度
           const withIds = assignImportWordIds(words);
+          const previousMastery = { ...state.mastery };
           state.originalWordBank = withIds;
           state.wordBank = data.randomMode ? shuffleArray([...withIds]) : [...withIds];
-          state.currentIndex = data.index || 0;
-          state.mastery = data.mastery || {};
-          state.mastered_ids = Array.isArray(data.mastered_ids) ? [...data.mastered_ids] : [];
+          state.currentIndex = 0;
+          state.mastery = {};
+          withIds.forEach((w) => {
+            const s = readWordStatus(previousMastery, w);
+            const key = masteryKeyOfWord(w);
+            if (s && key) state.mastery[key] = s;
+          });
+          state.mastered_ids = [];
           state.settings.enableRandomMode = data.randomMode || false;
           state.settings.recallMode = data.recallMode || 'en2cn';
           state.reviewFilter = null;
           state.currentWord = state.wordBank[state.currentIndex];
           state.currentWordIndex = state.currentIndex;
           state.showImporter = false;
+          state.importText = '';
           state.cloudModeLocked = true;
           localStorage.setItem(LS_CLOUD_MODE_LOCK, '1');
           localStorage.setItem(LS_LOCAL_MODE_LOCK, '0');
           state.localModeLocked = false;
           syncMasteredIdsFromMastery();
-          alert(`✅ 导入成功！共加载 ${words.length} 个单词`);
+          alert(`✅ 导入成功！共加载 ${words.length} 个单词\n已按新词库重建进度（保留重合词状态）。`);
           save();
           pushGistProgress();
         } else {
@@ -703,7 +737,14 @@ createApp({
       state.settings.recallMode = p.recallMode || 'en2cn';
       state.wordBank = state.settings.enableRandomMode ? shuffleArray([...state.originalWordBank]) : [...state.originalWordBank];
       state.currentIndex = p.index || 0;
-      state.mastery = p.mastery || {};
+      const rawMastery = p.mastery || {};
+      const normalizedMastery = {};
+      state.originalWordBank.forEach((w) => {
+        const s = readWordStatus(rawMastery, w);
+        const key = masteryKeyOfWord(w);
+        if (s && key) normalizedMastery[key] = s;
+      });
+      state.mastery = normalizedMastery;
       state.mastered_ids = Array.isArray(p.mastered_ids) ? [...p.mastered_ids] : [];
       state.currentWord = state.wordBank[Math.min(state.currentIndex, state.wordBank.length - 1)];
       state.currentWordIndex = state.currentIndex;
@@ -756,9 +797,8 @@ createApp({
         
         // 强力双向合并：将云端状态强制更新到本地 state.mastery
         Object.entries(remoteStatus).forEach(([id, status]) => {
-          const word = idToWord[id];
-          if (word) {
-            state.mastery[word] = status;
+          if (idToWord[id]) {
+            state.mastery[id] = status;
           }
         });
         
@@ -768,8 +808,9 @@ createApp({
         
         // 加入本地有但云端没有的状态
         state.originalWordBank.forEach((w) => {
-          if (w._id && state.mastery[w.word] && !merged[w._id]) {
-            merged[w._id] = state.mastery[w.word];
+          if (w._id) {
+            const s = getWordStatus(w);
+            if (s && !merged[w._id]) merged[w._id] = s;
           }
         });
         
@@ -839,9 +880,8 @@ createApp({
         
         let statusChangedCount = 0;
         Object.entries(merged).forEach(([id, status]) => {
-          const word = idToWord[id];
-          if (word && state.mastery[word] !== status) {
-            state.mastery[word] = status;
+          if (idToWord[id] && state.mastery[id] !== status) {
+            state.mastery[id] = status;
             statusChangedCount++;
           }
         });
@@ -857,10 +897,11 @@ createApp({
         // 保存到本地
         save();
         
-        // 获取最新的统计数据
-        const knownCount = state.mastered_ids.length;
-        const vagueCount = Object.values(state.mastery).filter((s) => s === 'vague').length;
-        const unknownCount = Object.values(state.mastery).filter((s) => s === 'unknown').length;
+        // 获取当前词库统计（不包含已从词库删除的旧词）
+        const currentStats = getCurrentBankStats();
+        const knownCount = currentStats.known;
+        const vagueCount = currentStats.vague;
+        const unknownCount = currentStats.unknown;
         
         // 显示成功提示，展示同步的单词状态数量
         alert(`✅ 同步成功！\n已同步 ${Object.keys(merged).length} 个单词状态\n已掌握: ${knownCount} | 模糊: ${vagueCount} | 未掌握: ${unknownCount}`);
@@ -870,6 +911,23 @@ createApp({
       } finally {
         state.syncInProgress = false;
       }
+    };
+
+    const cleanObsoleteStatuses = () => {
+      const before = Object.keys(state.mastery || {}).length;
+      const nextMastery = {};
+      state.originalWordBank.forEach((w) => {
+        const key = masteryKeyOfWord(w);
+        const s = getWordStatus(w);
+        if (key && s) nextMastery[key] = s;
+      });
+      state.mastery = nextMastery;
+      syncMasteredIdsFromMastery();
+      save();
+      pushGistProgress();
+      const after = Object.keys(nextMastery).length;
+      const removed = Math.max(0, before - after);
+      alert(`已清理 ${removed} 条旧状态记录。`);
     };
 
     onMounted(async () => {
@@ -882,6 +940,13 @@ createApp({
       document.addEventListener('keydown', (e) => {
         if (state.showImporter || state.showStats || state.showSyncDrawer || state.showSettingsMenu) return;
         const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
+
+        // PC 答题体验：输入框中答案判定为正确时，回车直接判定并切到下一词
+        if (e.key === 'Enter' && isTypingCorrect.value) {
+          e.preventDefault();
+          mark('known');
+          return;
+        }
 
         if (e.code === 'Space') {
           e.preventDefault();
@@ -899,11 +964,6 @@ createApp({
           return;
         }
         if (isInput) return;
-        if (e.key === 'Enter' && isTypingCorrect.value) {
-          e.preventDefault();
-          mark('known');
-          return;
-        }
         if (e.key.toLowerCase() === 'r') {
           toggleRandomMode();
           return;
@@ -1001,6 +1061,8 @@ createApp({
       fetchManifest,
       loadSelectedDay,
       loadAllFromManifest,
+      cleanObsoleteStatuses,
+      getWordStatus,
       canDismissAuthOverlay,
       formatDayLabel,
     };

@@ -169,9 +169,9 @@
                           {{ state.settings.enableRandomMode ? '乱序' : '顺序' }} ·
                           {{ state.settings.recallMode === 'en2cn' ? '英→中' : state.settings.recallMode === 'cn2en' ?
                           '中→英' : '全部' }}
-                          <span v-if="state.mastery[state.currentWord.word] === 'unknown'"
+                          <span v-if="getWordStatus(state.currentWord) === 'unknown'"
                             class="ml-2 text-red-500 font-bold">【不认识】</span>
-                          <span v-else-if="state.mastery[state.currentWord.word] === 'vague'"
+                          <span v-else-if="getWordStatus(state.currentWord) === 'vague'"
                             class="ml-2 text-amber-500 font-bold">【模糊】</span>
                         </span>
                         <button type="button" @click="nextWord" class="nav-word-btn">下一个 →</button>
@@ -199,7 +199,7 @@
       <button type="button" class="settings-action" :disabled="state.dataLoadBusy"
         @click="loadAllFromManifest(); closeSettingsMenu()">全部加载</button>
       <button type="button" class="settings-action" :disabled="state.dataLoadBusy"
-        @click="fetchManifest(); closeSettingsMenu()">刷新 manifest 目录</button>
+        @click="cleanObsoleteStatuses(); closeSettingsMenu()">清理当前词库以外的旧状态</button>
       <p v-if="state.dataLoadMessage" class="settings-msg">{{ state.dataLoadMessage }}</p>
       <div class="flex-1"></div>
       <div class="flex justify-end">

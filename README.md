@@ -79,7 +79,37 @@
 
 ---
 
-## 九、备注（JSON代码的导入要求～示例）
+## 九、维护 `manifest.json`（推荐）
+
+仓库已提供脚本：`scripts/update-manifest.js`  
+作用：自动扫描 `data/` 下所有 `day*.json`（如 `day01.json`、`day3.json`），并重写 `data/manifest.json` 的 `days` 列表。
+
+### 使用方法
+
+在项目根目录执行：
+
+```bash
+node scripts/update-manifest.js
+```
+
+执行后会输出例如：
+
+```bash
+manifest 已更新：01, 02, 03
+```
+
+### 你后续怎么维护
+
+1. 把新词库文件放到 `data/`，命名为 `dayXX.json`（建议两位数，如 `day03.json`）
+2. 运行：`node scripts/update-manifest.js`
+3. 提交 `data/manifest.json` 与新增/删除的 `dayXX.json`
+4. 网站端使用“加载所选 Day / 全部加载”即可读取更新后的 manifest
+
+> 说明：网页前端本身不能直接扫描 GitHub 仓库并改写文件，所以“自动更新 manifest”需要通过这个仓库脚本完成。
+
+---
+
+## 十、备注（JSON代码的导入要求～示例）
 
 ### 单词的结构
 

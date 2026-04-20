@@ -1,0 +1,15 @@
+[
+  {
+    "word": "manifest",
+    "pos": "n./v./adj.",
+    "phonetic": "/ˈmænɪfest/",
+    "meaning": "载货单/清单；表明；明显的",
+    "mod1_desc": "在 BEC 贸易中，它特指‘舱单’或‘载货清单’。易错点：不要把它当成普通的 list。它是具有法律效力的报关文件，不仅是‘有哪些货’，还是‘谁的货、去哪儿’。",
+    "mod2_desc": "一份正式的、能证明‘我带了什么’的官方宣告。",
+    "mod3_word": "consignment note / obvious",
+    "mod3_meaning": "发货单 / 明显的",
+    "mod4_en": "The customs officer requested the shipping manifest to verify the cargo contents.",
+    "mod4_zh": "海关官员要求查验载货清单，以核实货物内容。",
+    "mod4_core": "合规性自证/解决清关阻碍。"
+  }
+]
