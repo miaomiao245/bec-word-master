@@ -1,0 +1,54 @@
+[
+  {
+    "word": "commit",
+    "pos": "v.",
+    "phonetic": "/kəˈmɪt/",
+    "meaning": "交付；承诺；提交(代码)",
+    "mod1_desc": "在 Git 中是提交备注，在商务中是承诺投入资源。",
+    "mod2_desc": "正式把责任/代码交出去。",
+    "mod3_word": "pledge / deliver",
+    "mod3_meaning": "保证；交付",
+    "mod4_en": "We are fully committed to solving the system bug by Friday.",
+    "mod4_zh": "我们承诺在周五前解决系统故障。",
+    "mod4_core": "管理预期：给出明确承诺。"
+  },
+  {
+    "word": "prescriptive",
+    "pos": "adj.",
+    "phonetic": "/prɪˈskrɪptɪv/",
+    "meaning": "规定性的；指定的",
+    "mod1_desc": "易错点：不是描述性的，而是像处方一样强制要求的。",
+    "mod2_desc": "像医生开处方一样死板执行。",
+    "mod3_word": "mandatory",
+    "mod3_meaning": "强制性的",
+    "mod4_en": "The client has very prescriptive requirements for data security.",
+    "mod4_zh": "客户对数据安全有非常明确且强制性的要求。",
+    "mod4_core": "解释限制：说明为何不能灵活配置。"
+  },
+  {
+    "word": "conservative",
+    "pos": "adj.",
+    "phonetic": "/kənˈsɜːrvətɪv/",
+    "meaning": "保守的；谨慎的",
+    "mod1_desc": "商务中常形容“估值谨慎”，防止牛皮吹大。",
+    "mod2_desc": "为了安全而留有余地。",
+    "mod3_word": "cautious",
+    "mod3_meaning": "谨慎的",
+    "mod4_en": "This is a conservative estimate of the implementation timeline.",
+    "mod4_zh": "这是对实施时间表的一个保守估计。",
+    "mod4_core": "专业示强：体现评估的严谨性。"
+  },
+  {
+    "word": "appendix",
+    "pos": "n.",
+    "phonetic": "/əˈpendɪks/",
+    "meaning": "附录；附件",
+    "mod1_desc": "易混淆点：不是邮件附件(attachment)，是书/方案后的补充说明。",
+    "mod2_desc": "挂在主体末端的小尾巴。",
+    "mod3_word": "supplement",
+    "mod3_meaning": "补充物",
+    "mod4_en": "Please refer to Appendix A for the detailed data mapping logic.",
+    "mod4_zh": "请参阅附录 A 以获取详细的数据映射逻辑。",
+    "mod4_core": "指引资源：引导客户查看详细文档。"
+  }
+]
