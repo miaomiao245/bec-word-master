@@ -1,0 +1,28 @@
+[
+  {
+    "word": "prescriptive",
+    "pos": "adj.",
+    "phonetic": "/prɪˈskrɪptɪv/",
+    "meaning": "规定性的；指令性的",
+    "mod1_desc": "易错点：不要只想到'写'，要想到'像处方一样强制要求'。",
+    "mod2_desc": "Pre(提前) + Script(写) = 提前定好的规矩。",
+    "mod3_word": "dictatorial",
+    "mod3_meaning": "独裁的；指令性的",
+    "mod4_en": "The government issued prescriptive guidelines for the banking sector.",
+    "mod4_zh": "政府为银行业发布了规定性准则。",
+    "mod4_core": "合规性陈述。"
+  },
+  {
+    "word": "subscription",
+    "pos": "n.",
+    "phonetic": "/səbˈskrɪpʃn/",
+    "meaning": "订阅；订购款",
+    "mod1_desc": "商务中常指 SaaS 产品的按年/按月付费模式。",
+    "mod2_desc": "Sub(在下面) + Script(写) = 在合同下方签字订阅。",
+    "mod3_word": "membership",
+    "mod3_meaning": "会员资格；订阅",
+    "mod4_en": "Our revenue grew by 20% thanks to the increase in software subscriptions.",
+    "mod4_zh": "由于软件订阅量的增加，我们的收入增长了 20%。",
+    "mod4_core": "业务增长分析。"
+  }
+]
