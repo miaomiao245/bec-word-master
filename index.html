@@ -75,9 +75,9 @@
                         </div>
                       </div>
                       <div v-else>
-                        <div class="flex justify-center items-center gap-4 mb-3">
-                          <h2 class="word-title">{{ state.currentWord.word }}</h2>
-                          <div class="flex gap-2">
+                        <div :class="['word-audio-row', { 'word-audio-row--stacked': (state.currentWord.word || '').length >= 12 }]">
+                          <h2 :class="['word-title', { 'word-title--long': (state.currentWord.word || '').length >= 12 }]">{{ state.currentWord.word }}</h2>
+                          <div class="word-audio-actions">
                             <button type="button" @click="playAudio(state.currentWord.word, 1)" class="audio-btn">
                               <i class="ph-fill ph-speaker-high"></i>
                               <span class="audio-label">UK</span>

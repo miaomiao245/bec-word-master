@@ -276,6 +276,18 @@
 .word-title {
   font-size: 3rem; font-weight: bold;
 }
+.word-audio-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+.word-audio-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
 .phonetic {
   color: #93c5fd; font-style: italic; margin-bottom: 2rem;
 }
@@ -334,6 +346,28 @@
 @media (max-width: 899px) {
   .card-header-button {
     display: none !important;
+  }
+  .word-audio-row {
+    width: 100%;
+    padding-inline: 0.4rem;
+  }
+  .word-title {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .word-audio-row--stacked {
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+  .word-title--long {
+    font-size: clamp(1.75rem, 7.6vw, 2.45rem);
+    line-height: 1.15;
+  }
+  .word-audio-row--stacked .word-audio-actions {
+    width: 100%;
+    justify-content: center;
+    padding-inline: 0.35rem;
   }
 }
 
